@@ -59,8 +59,10 @@ enum ServiceType: String, Codable, CaseIterable {
         case .immich:         return "Immich"
         case .paperless:      return "Paperless-ngx"
         case .frigate:        return "Frigate"
-        case .ntfy:           return "ntfy"        case .claude:        return "Claude"
-        case .copilot:       return "GitHub Copilot"        case .generic:        return "Generic"
+        case .ntfy:           return "ntfy"
+        case .claude:         return "Claude"
+        case .copilot:        return "GitHub Copilot"
+        case .generic:        return "Generic"
         }
     }
 
@@ -139,8 +141,8 @@ enum ServiceType: String, Codable, CaseIterable {
         switch self {
         case .homeAssistant: return "Settings → Profile → Long-Lived Access Tokens"
         case .github:        return "Optional: enter owner/repo to track stars, forks, issues and CI status. Token: GitHub Settings > Developer settings > Personal access tokens."
-        case .claude:        return "console.anthropic.com > API Keys. Shows token usage, rate limits and model availability."
-        case .copilot:       return "GitHub PAT with copilot scope. Settings > Developer settings > Personal access tokens. Shows seat info and usage."
+        case .claude:        return "Requires a paid Anthropic API account (separate from Claude Pro). Go to console.anthropic.com to create an API key. Not available with a claude.ai Pro subscription."
+        case .copilot:       return "Requires a GitHub Personal Access Token (classic) with read:user scope. Go to github.com/settings/tokens. Only shows plan details for individual (personal) Copilot subscriptions - org-managed seats will only show your account name and API rate limit."
         case .portainer:     return "Portainer → My Account → API Keys"
         case .jellyfin:      return "Dashboard → API Keys → +"
         case .grafana:       return "Administration → Service accounts → Add service account → Add token. Without a token, only version and DB health are shown."

@@ -8,7 +8,10 @@ struct ServicePickerView: View {
     @State private var searchText = ""
 
     private var cloudServices: [ServiceType] {
-        ServiceType.allCases.filter { $0.isCloudService && matchesSearch($0) }
+        // Put Claude and Copilot at the bottom since they have limited availability
+        let priority: [ServiceType] = [.github]
+        let other = ServiceType.allCases.filter { $0.isCloudService && !priority.contains($0) && matchesSearch($0) }
+        return priority.filter { matchesSearch($0) } + other
     }
 
     private var selfHostedServices: [ServiceType] {
