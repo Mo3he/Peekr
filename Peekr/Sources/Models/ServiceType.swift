@@ -164,13 +164,20 @@ enum ServiceType: String, Codable, CaseIterable {
     /// Returns nil for services where the root URL is a fine ping target.
     var pingPath: String? {
         switch self {
-        case .glances:    return "/api/3/cpu"
-        // Root URLs for these serve PHP/redirect pages that reject HEAD,
-        // causing a slow GET fallback. Use a lightweight API endpoint instead.
+        // Root URL for these serves a full web UI — use a lightweight API path instead.
         case .proxmox:    return "/api2/json/version"
         case .nextcloud:  return "/status.php"
-        case .openWrt:    return "/ubus"
         default: return nil
+        }
+    }
+
+    /// Whether to use a raw TCP port-open check instead of HTTP for latency.
+    /// Use this when the service's HTTP root is unreliable for HEAD/GET pings
+    /// (e.g. POST-only endpoints, non-standard response codes).
+    var prefersTCPPing: Bool {
+        switch self {
+        case .glances, .openWrt: return true
+        default: return false
         }
     }
 

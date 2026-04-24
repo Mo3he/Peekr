@@ -352,20 +352,23 @@ private struct OverallStatusSection: View {
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.green)
                             .labelStyle(CompactLabelStyle())
-                        Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
-                            .opacity(degradedCount > 0 ? 1 : 0)
-                        Label("\(degradedCount) degraded", systemImage: "circle.fill")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.orange)
-                            .labelStyle(CompactLabelStyle())
-                            .opacity(degradedCount > 0 ? 1 : 0)
-                        Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
-                            .opacity(offlineCount > 0 ? 1 : 0)
-                        Label("\(offlineCount) offline", systemImage: "circle.fill")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.red)
-                            .labelStyle(CompactLabelStyle())
-                            .opacity(offlineCount > 0 ? 1 : 0)
+                            .fixedSize()
+                        if degradedCount > 0 {
+                            Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
+                            Label("\(degradedCount) degraded", systemImage: "circle.fill")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.orange)
+                                .labelStyle(CompactLabelStyle())
+                                .fixedSize()
+                        }
+                        if offlineCount > 0 {
+                            Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
+                            Label("\(offlineCount) offline", systemImage: "circle.fill")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.red)
+                                .labelStyle(CompactLabelStyle())
+                                .fixedSize()
+                        }
                     }
                 }
 

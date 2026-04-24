@@ -19,12 +19,11 @@ actor PingService {
     }()
 
     func check(_ service: Service) async throws -> CheckResult {
-        if service.scheme.isHTTP {
-            return try await httpCheck(service)
-        } else {
+        if service.serviceType.prefersTCPPing || !service.scheme.isHTTP {
             let ms = try await tcpCheck(host: service.host, port: service.port)
             return CheckResult(latencyMs: ms, httpStatusCode: nil)
         }
+        return try await httpCheck(service)
     }
 
     // MARK: - HTTP
