@@ -57,7 +57,13 @@ final class HomeViewModel: ObservableObject {
     var filteredServices: [Service] {
         var list = services
         if let filter = statusFilter {
-            list = list.filter { $0.status == filter }
+            let filtered = list.filter { $0.status == filter }
+            // Auto-clear stale filter: if it matches nothing and services have loaded, drop it
+            if filtered.isEmpty && !services.isEmpty && !isRefreshing {
+                Task { @MainActor in statusFilter = nil }
+                return list
+            }
+            list = filtered
         }
         if !searchText.isEmpty {
             let q = searchText.lowercased()

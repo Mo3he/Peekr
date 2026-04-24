@@ -179,20 +179,24 @@ struct HomeView: View {
     }
 
     private func filterChip(label: String, filter: ServiceStatus?) -> some View {
-        Button {
+        let isSelected = vm.statusFilter == filter
+        return Button {
             withAnimation(.easeInOut(duration: 0.2)) {
-                vm.statusFilter = vm.statusFilter == filter ? nil : filter
+                vm.statusFilter = isSelected ? nil : filter
             }
         } label: {
             Text(label)
                 .font(.caption.weight(.medium))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(vm.statusFilter == filter ? Color.accentColor : Color(.tertiarySystemFill))
-                .foregroundStyle(vm.statusFilter == filter ? .white : .primary)
+                .background(isSelected ? Color.accentColor : Color(.tertiarySystemFill))
+                .foregroundStyle(isSelected ? .white : .primary)
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(label) filter")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityHint(isSelected ? "Tap to show all services" : "Tap to filter by \(label.lowercased())")
     }
 
     // MARK: - Sections

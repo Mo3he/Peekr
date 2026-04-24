@@ -35,5 +35,7 @@ struct StatusIndicatorView: View {
                 .symbolEffect(.pulse, isActive: status == .checking)
         }
         .frame(width: size, height: size) // fixed frame — pulsing ring uses scaleEffect so layout is stable
+        .accessibilityLabel(status.label)
+        .accessibilityHint(status == .checking ? "Checking service status" : "")
     }
 }

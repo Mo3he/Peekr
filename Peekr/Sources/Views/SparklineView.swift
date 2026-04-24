@@ -17,8 +17,16 @@ struct SparklineView: View {
                         .stroke(lineColor, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                 }
                 .frame(height: height)
+                .accessibilityLabel(accessibilityDescription(values: values))
+                .accessibilityHint("Latency trend chart")
             }
         }
+    }
+
+    private func accessibilityDescription(values: [Double]) -> String {
+        guard let first = values.first, let last = values.last else { return "Latency trend" }
+        let trend = last > first * 1.2 ? "increasing" : last < first * 0.8 ? "decreasing" : "stable"
+        return String(format: "Latency trend, %@. Latest: %.0f ms", trend, last)
     }
 
     private func sparklinePath(values: [Double], in size: CGSize) -> Path {
