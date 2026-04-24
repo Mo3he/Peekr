@@ -49,6 +49,7 @@ struct HomeView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 12) {
+                        EditButton()
                         Button { showServicePicker = true } label: {
                             Image(systemName: "plus")
                         }
@@ -227,43 +228,68 @@ struct HomeView: View {
 
     private func serviceRows(for list: [Service], header: String) -> some View {
         Section {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                ForEach(list) { service in
-                    Button {
-                        detailService = service
+            ForEach(list) { service in
+                Button {
+                    detailService = service
+                } label: {
+                ServiceRowView(service: service)
+                    .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        serviceToDelete = service
                     } label: {
-                        ServiceGridCellView(service: service)
-                            .foregroundStyle(.primary)
+                        Label("Delete", systemImage: "trash")
                     }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        Button {
-                            editingService = service
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
-                        }
-                        Button {
-                            vm.duplicateService(service)
-                        } label: {
-                            Label("Duplicate", systemImage: "doc.on.doc")
-                        }
-                        Button {
-                            Task { await vm.checkAndFetch(service) }
-                        } label: {
-                            Label("Refresh", systemImage: "arrow.clockwise")
-                        }
-                        Divider()
-                        Button(role: .destructive) {
-                            serviceToDelete = service
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
+                    Button {
+                        editingService = service
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    .tint(.blue)
+                }
+                .swipeActions(edge: .leading) {
+                    Button {
+                        Task { await vm.checkAndFetch(service) }
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .tint(.green)
+                }
+                .contextMenu {
+                    Button {
+                        editingService = service
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    Button {
+                        vm.duplicateService(service)
+                    } label: {
+                        Label("Duplicate", systemImage: "doc.on.doc")
+                    }
+                    Button {
+                        Task { await vm.checkAndFetch(service) }
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    Divider()
+                    Button(role: .destructive) {
+                        serviceToDelete = service
+                    } label: {
+                        Label("Delete", systemImage: "trash")
                     }
                 }
             }
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+            .onMove { indices, dest in
+                let ids = list.map(\.id)
+                let sourceIDs = indices.map { ids[$0] }
+                let destID = dest < ids.count ? ids[dest] : nil
+                vm.moveServices(sourceIDs: sourceIDs, before: destID)
+            }
         } header: {
             Text(header)
         }
