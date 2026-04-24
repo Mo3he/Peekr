@@ -10,6 +10,7 @@ struct iPadRootView: View {
     @State private var addServiceRequest: AddServiceItem? = nil
     @State private var editingService: Service?
     @State private var serviceToDelete: Service?
+    @State private var sidebarScrolledID: UUID?
     @AppStorage("autoRefreshInterval") private var refreshInterval: Double = 30
 
     var body: some View {
@@ -62,7 +63,8 @@ struct iPadRootView: View {
             serviceRows
         }
         .listStyle(.sidebar)
-        .searchable(text: $vm.searchText, prompt: "Search services")
+            .scrollPosition(id: $sidebarScrolledID)
+            .searchable(text: $vm.searchText, prompt: "Search services")
         .navigationTitle("Peekr")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -78,7 +80,9 @@ struct iPadRootView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                addMenu
+                AddServiceMenuButton { type in
+                    addServiceRequest = AddServiceItem(serviceType: type)
+                }
             }
         }
     }
@@ -196,29 +200,4 @@ struct iPadRootView: View {
     private var eventLogPanel: some View {
         EventLogView(vm: vm)
     }
-
-    // MARK: - Add menu
-
-    private var addMenu: some View {
-        Menu {
-            ForEach(ServiceType.allCases.filter { $0 != .generic }, id: \.self) { type in
-                Button {
-                    addServiceRequest = AddServiceItem(serviceType: type)
-                } label: {
-                    Label(type.displayName, systemImage: type.icon)
-                }
-            }
-            Divider()
-            Button { addServiceRequest = AddServiceItem(serviceType: nil) } label: {
-                Label("Other / Custom", systemImage: "server.rack")
-            }
-        } label: {
-            Image(systemName: "plus")
-        }
-    }
-}
-
-private struct AddServiceItem: Identifiable {
-    let id = UUID()
-    let serviceType: ServiceType?
 }

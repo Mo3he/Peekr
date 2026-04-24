@@ -17,6 +17,7 @@ struct HomeView: View {
     @State private var detailService: Service?
     @State private var showSettings = false
     @State private var serviceToDelete: Service?
+    @State private var listScrolledID: UUID?
     @AppStorage("autoRefreshInterval") private var refreshInterval: Double = 30
 
     var body: some View {
@@ -32,6 +33,7 @@ struct HomeView: View {
                 servicesSection
             }
             .listStyle(.insetGrouped)
+            .scrollPosition(id: $listScrolledID)
             .searchable(text: $vm.searchText, prompt: "Search services")
             .refreshable { vm.refreshAll() }
             .navigationTitle("")
@@ -48,7 +50,9 @@ struct HomeView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 12) {
                         EditButton()
-                        addMenu
+                        AddServiceMenuButton { type in
+                            addServiceRequest = AddServiceItem(serviceType: type)
+                        }
                     }
                 }
             }
@@ -95,26 +99,6 @@ struct HomeView: View {
     }
 
     // MARK: - Toolbar
-
-    private var addMenu: some View {
-        Menu {
-            ForEach(ServiceType.allCases.filter { $0 != .generic }, id: \.self) { type in
-                Button {
-                    addServiceRequest = AddServiceItem(serviceType: type)
-                } label: {
-                    Label(type.displayName, systemImage: type.icon)
-                }
-            }
-            Divider()
-            Button {
-                addServiceRequest = AddServiceItem(serviceType: nil)
-            } label: {
-                Label("Other / Custom", systemImage: "server.rack")
-            }
-        } label: {
-            Image(systemName: "plus")
-        }
-    }
 
     private var refreshButton: some View {
         Button { vm.refreshAll() } label: {
@@ -376,9 +360,4 @@ struct HomeView: View {
         .padding(.vertical, 48)
         .listRowBackground(Color.clear)
     }
-}
-
-private struct AddServiceItem: Identifiable {
-    let id = UUID()
-    let serviceType: ServiceType?
 }
