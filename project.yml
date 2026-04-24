@@ -30,10 +30,6 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: "YES"
         DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER: "YES"
-    entitlements:
-      path: Peekr/Peekr.entitlements
-      properties:
-        com.apple.developer.ubiquity-kvstore-identifier: $(TeamIdentifierPrefix)com.mblieden.peekr
 
   PeekrWidget:
     type: app-extension
