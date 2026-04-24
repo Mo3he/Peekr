@@ -36,15 +36,15 @@ struct iPadRootView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView(vm: vm)
         }
-        .confirmationDialog(
+        .alert(
             "Delete \(serviceToDelete?.name ?? "service")?",
-            isPresented: .init(get: { serviceToDelete != nil }, set: { if !$0 { serviceToDelete = nil } }),
-            titleVisibility: .visible
+            isPresented: .init(get: { serviceToDelete != nil }, set: { if !$0 { serviceToDelete = nil } })
         ) {
             Button("Delete", role: .destructive) {
                 if let svc = serviceToDelete { vm.removeService(svc) }
                 serviceToDelete = nil
             }
+            Button("Cancel", role: .cancel) { serviceToDelete = nil }
         } message: {
             Text("This service and its history will be removed.")
         }

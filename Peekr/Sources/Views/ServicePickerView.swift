@@ -31,17 +31,17 @@ struct ServicePickerView: View {
     var body: some View {
         NavigationStack {
             List {
-                if !cloudServices.isEmpty {
-                    Section("Cloud APIs") {
-                        ForEach(cloudServices, id: \.self) { type in
+                if !selfHostedServices.isEmpty {
+                    Section("Self-Hosted") {
+                        ForEach(selfHostedServices, id: \.self) { type in
                             serviceRow(type)
                         }
                     }
                 }
 
-                if !selfHostedServices.isEmpty {
-                    Section("Self-Hosted") {
-                        ForEach(selfHostedServices, id: \.self) { type in
+                if !cloudServices.isEmpty {
+                    Section("Cloud APIs") {
+                        ForEach(cloudServices, id: \.self) { type in
                             serviceRow(type)
                         }
                     }
