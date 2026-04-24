@@ -140,6 +140,18 @@ struct AddServiceView: View {
                 TextField(detectedType.usernameLabel, text: $username)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .onChange(of: username) { _, newValue in
+                        // Auto-fill the service name with the repo name (part after "/")
+                        let parts = newValue.split(separator: "/", maxSplits: 1)
+                        guard parts.count == 2 else { return }
+                        let repoName = String(parts[1]).trimmingCharacters(in: .whitespaces)
+                        guard !repoName.isEmpty else { return }
+                        let currentName = name.trimmingCharacters(in: .whitespaces)
+                        // Only overwrite if name is blank or still the generic type default
+                        if currentName.isEmpty || currentName == detectedType.displayName {
+                            name = repoName
+                        }
+                    }
                 SecureField(detectedType.apiKeyLabel, text: $apiKey)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()

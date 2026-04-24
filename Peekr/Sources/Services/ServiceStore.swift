@@ -58,6 +58,22 @@ final class ServiceStore: ObservableObject {
         save()
     }
 
+    /// Update multiple services in a single `@Published` assignment (one objectWillChange, one save).
+    func batchUpdate(_ updates: [Service]) {
+        var copy = services
+        var changed = false
+        for updated in updates {
+            if let idx = copy.firstIndex(where: { $0.id == updated.id }) {
+                copy[idx] = updated
+                changed = true
+            }
+        }
+        if changed {
+            services = copy
+            save()
+        }
+    }
+
     func move(from source: IndexSet, to destination: Int) {
         services.move(fromOffsets: source, toOffset: destination)
         save()

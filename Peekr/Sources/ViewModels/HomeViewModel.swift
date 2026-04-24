@@ -406,23 +406,91 @@ final class HomeViewModel: ObservableObject {
         autoRefreshTask?.cancel()
         guard refreshInterval > 0 else { return }
         autoRefreshTask = Task {
-            // Poll every 10 s; each service is only checked when its own interval has elapsed.
             let pollInterval: Double = 10
             while !Task.isCancelled {
                 if !isRefreshing {
-                    let now = Date()
-                    let current = store.services
-                    for service in current {
-                        guard !Task.isCancelled else { break }
-                        let interval = service.checkInterval ?? refreshInterval
-                        let due = service.lastChecked.map { now.timeIntervalSince($0) >= interval } ?? true
-                        if due { await checkAndFetch(service) }
-                    }
-                    if !current.isEmpty { lastRefreshed = Date() }
+                    await performBackgroundRefresh()
                 }
                 try? await Task.sleep(for: .seconds(pollInterval))
             }
         }
+    }
+
+    /// Silent background refresh: no "checking" indicator, all writes batched into a single
+    /// publish cycle so the List never loses its scroll position.
+    private func performBackgroundRefresh() async {
+        let now = Date()
+        let current = store.services
+        guard !current.isEmpty else { return }
+
+        var updatedServices: [Service] = []
+        var newMetrics = metrics      // start from current, overwrite only changed services
+        var newErrors   = metricsError
+
+        for service in current {
+            guard !Task.isCancelled else { break }
+            let interval = service.checkInterval ?? refreshInterval
+            let due = service.lastChecked.map { now.timeIntervalSince($0) >= interval } ?? true
+            guard due else { continue }
+            if !network.canReachLocal && service.isLocalNetwork { continue }
+            guard store.services.contains(where: { $0.id == service.id }) else { continue }
+
+            let previousStatus = service.status
+            var updated = service
+
+            do {
+                let result = try await PingService.shared.check(service)
+                updated.latencyMs       = result.latencyMs
+                updated.httpStatusCode  = result.httpStatusCode
+                if let code = result.httpStatusCode {
+                    updated.status = (200..<400).contains(code) || code == 401 || code == 403 ? .online : .degraded
+                } else {
+                    updated.status = .online
+                }
+            } catch {
+                updated.status         = .offline
+                updated.latencyMs      = nil
+                updated.httpStatusCode = nil
+                updated.lastChecked    = Date()
+                // Side-effects that don't publish to SwiftUI
+                recordTransition(service: updated, from: previousStatus)
+                historyStore.record(serviceID: service.id, status: .offline, latencyMs: nil)
+                uptimeStore.record(serviceID: service.id, status: .offline)
+                updatedServices.append(updated)
+                newMetrics[service.id] = []
+                newErrors.removeValue(forKey: service.id)
+                continue
+            }
+
+            updated.lastChecked = Date()
+            recordTransition(service: updated, from: previousStatus)
+            historyStore.record(serviceID: updated.id, status: updated.status, latencyMs: updated.latencyMs)
+            uptimeStore.record(serviceID: updated.id, status: updated.status)
+            updatedServices.append(updated)
+
+            let integration = IntegrationProvider.integration(for: updated)
+            do {
+                var fetched = try await integration.fetchMetrics(service: updated)
+                fetched = applyMetricOrder(fetched, serviceID: updated.id)
+                newMetrics[updated.id] = fetched
+                newErrors.removeValue(forKey: updated.id)
+            } catch let e as IntegrationError where e == .authFailed {
+                newMetrics[updated.id] = []
+                newErrors[updated.id]  = "Authentication failed. Check your credentials in Edit."
+            } catch {
+                newMetrics[updated.id] = []
+                newErrors[updated.id]  = error.localizedDescription
+            }
+        }
+
+        guard !updatedServices.isEmpty else { return }
+
+        // Apply everything in one synchronous block — coalesced into ≤3 body re-renders
+        // regardless of how many services were checked.
+        store.batchUpdate(updatedServices)  // 1 publish
+        metrics      = newMetrics           // 1 publish
+        metricsError = newErrors            // 1 publish
+        lastRefreshed = Date()
     }
 
     func stopAutoRefresh() {
