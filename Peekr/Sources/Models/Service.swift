@@ -17,6 +17,8 @@ struct Service: Identifiable, Codable, Hashable {
     var httpStatusCode: Int?
     /// Override the global auto-refresh interval for this service (seconds). nil = use global setting.
     var checkInterval: Double?
+    /// Whether offline/recovery notifications are enabled for this service. Defaults to true.
+    var notificationsEnabled: Bool
 
     // Explicit CodingKeys so that adding new optional fields never breaks
     // decoding of older stored data (missing keys decode as nil).
@@ -24,7 +26,7 @@ struct Service: Identifiable, Codable, Hashable {
         case id, name, host, port, scheme, serviceType, group
         case apiKey, username, password
         case status, lastChecked, latencyMs, httpStatusCode
-        case checkInterval
+        case checkInterval, notificationsEnabled
     }
 
     init(id: UUID = UUID(), name: String, host: String, port: Int, scheme: ServiceScheme = .http,
@@ -41,6 +43,28 @@ struct Service: Identifiable, Codable, Hashable {
         self.password = password
         self.status = .unknown
         self.checkInterval = nil
+        self.notificationsEnabled = true
+    }
+
+    /// Custom decoder so that new fields added after initial release default gracefully.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id              = try c.decode(UUID.self,          forKey: .id)
+        name            = try c.decode(String.self,        forKey: .name)
+        host            = try c.decode(String.self,        forKey: .host)
+        port            = try c.decode(Int.self,           forKey: .port)
+        scheme          = try c.decode(ServiceScheme.self, forKey: .scheme)
+        serviceType     = try c.decode(ServiceType.self,   forKey: .serviceType)
+        group           = try c.decodeIfPresent(String.self,        forKey: .group)
+        apiKey          = try c.decodeIfPresent(String.self,        forKey: .apiKey)
+        username        = try c.decodeIfPresent(String.self,        forKey: .username)
+        password        = try c.decodeIfPresent(String.self,        forKey: .password)
+        status          = try c.decode(ServiceStatus.self,          forKey: .status)
+        lastChecked     = try c.decodeIfPresent(Date.self,          forKey: .lastChecked)
+        latencyMs       = try c.decodeIfPresent(Double.self,        forKey: .latencyMs)
+        httpStatusCode  = try c.decodeIfPresent(Int.self,           forKey: .httpStatusCode)
+        checkInterval   = try c.decodeIfPresent(Double.self,        forKey: .checkInterval)
+        notificationsEnabled = try c.decodeIfPresent(Bool.self,     forKey: .notificationsEnabled) ?? true
     }
 
     var url: URL? {

@@ -16,4 +16,22 @@ enum NotificationService {
         )
         try? await UNUserNotificationCenter.current().add(request)
     }
+
+    static func postRecoveryAlert(for service: Service) async {
+        // Cancel any pending offline alert for this service
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["offline-\(service.id.uuidString)"])
+
+        let content = UNMutableNotificationContent()
+        content.title = "\(service.name) is back online"
+        content.body = "\(service.displayURL) is responding again."
+        content.sound = .default
+        content.interruptionLevel = .active
+
+        let request = UNNotificationRequest(
+            identifier: "recovery-\(service.id.uuidString)",
+            content: content,
+            trigger: nil
+        )
+        try? await UNUserNotificationCenter.current().add(request)
+    }
 }

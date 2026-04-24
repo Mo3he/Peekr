@@ -17,6 +17,7 @@ struct AddServiceView: View {
     @State private var showValidationError = false
     @State private var isSanitizing = false   // guard against onChange re-entry
     @State private var checkInterval: Double   // 0 = use global default
+    @State private var notificationsEnabled: Bool
 
     private static let intervalOptions: [(label: String, value: Double)] = [
         ("Default (global)", 0),
@@ -42,6 +43,7 @@ struct AddServiceView: View {
         _username = State(initialValue: existing?.username ?? "")
         _password = State(initialValue: existing?.password ?? "")
         _checkInterval = State(initialValue: existing?.checkInterval ?? 0)
+        _notificationsEnabled = State(initialValue: existing?.notificationsEnabled ?? true)
     }
 
     private var isEditing: Bool { existing != nil }
@@ -86,6 +88,8 @@ struct AddServiceView: View {
                             Text(opt.label).tag(opt.value)
                         }
                     }
+
+                    Toggle("Notifications", isOn: $notificationsEnabled)
                 }
 
                 authSection
@@ -216,6 +220,7 @@ struct AddServiceView: View {
         service.lastChecked    = existing?.lastChecked
         service.httpStatusCode = existing?.httpStatusCode
         service.checkInterval  = checkInterval > 0 ? checkInterval : nil
+        service.notificationsEnabled = notificationsEnabled
         onSave(service)
         dismiss()
     }

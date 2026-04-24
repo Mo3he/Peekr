@@ -283,6 +283,15 @@ final class HomeViewModel: ObservableObject {
             gen.notificationOccurred(.success)
         }
         #endif
+
+        // Push notification (if enabled for this service)
+        if service.notificationsEnabled {
+            if new == .offline && (old == .online || old == .degraded) {
+                Task { await NotificationService.postOfflineAlert(for: service) }
+            } else if (new == .online || new == .degraded) && old == .offline {
+                Task { await NotificationService.postRecoveryAlert(for: service) }
+            }
+        }
     }
 
     func clearEvents() {

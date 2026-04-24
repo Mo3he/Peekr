@@ -46,6 +46,16 @@ struct SettingsView: View {
                         }
                     }
 
+                    let reportHTML = UptimeReportGenerator.generate(services: vm.services)
+                    let reportFile = HTMLFile(data: reportHTML, filename: "peekr-report.html")
+                    ShareLink(
+                        item: reportFile,
+                        preview: SharePreview("Peekr Status Report", image: Image(systemName: "chart.bar.doc.horizontal"))
+                    ) {
+                        Label("Export Status Report", systemImage: "chart.bar.doc.horizontal")
+                    }
+                    .disabled(vm.services.isEmpty)
+
                     Button {
                         showImporter = true
                     } label: {

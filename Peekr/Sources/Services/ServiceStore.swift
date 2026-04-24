@@ -1,7 +1,8 @@
 import Foundation
 import Security
 
-/// Persists service metadata to UserDefaults. Credentials are stored in the Keychain.
+/// Persists service metadata to UserDefaults and syncs it via iCloud KV store.
+/// Credentials are never synced - they stay in the local Keychain.
 @MainActor
 final class ServiceStore: ObservableObject {
     static let shared = ServiceStore()
@@ -11,8 +12,24 @@ final class ServiceStore: ObservableObject {
     private let key = "peekr.services.v3"
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let icloud = NSUbiquitousKeyValueStore.default
 
     private init() {
+        // Listen for iCloud changes pushed from other devices
+        NotificationCenter.default.addObserver(
+            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: icloud,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            let reason = notification.userInfo?[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int
+            // Only merge on server-change or initial sync, not on our own writes
+            if reason == NSUbiquitousKeyValueStoreServerChange ||
+               reason == NSUbiquitousKeyValueStoreInitialSyncChange {
+                Task { @MainActor in self.mergeFromiCloud() }
+            }
+        }
+        icloud.synchronize()
         load()
     }
 
@@ -47,7 +64,7 @@ final class ServiceStore: ObservableObject {
     // MARK: - Persistence
 
     private func save() {
-        // Strip credentials before writing to UserDefaults; push them to Keychain instead.
+        // Strip credentials before writing to UserDefaults / iCloud; push them to Keychain instead.
         let sanitized = services.map { s -> Service in
             saveCredentials(for: s)
             var copy = s
@@ -58,6 +75,58 @@ final class ServiceStore: ObservableObject {
         }
         guard let data = try? encoder.encode(sanitized) else { return }
         UserDefaults.standard.set(data, forKey: key)
+        // Push the same sanitized payload to iCloud KV store (max 1 MB - plenty for service lists)
+        icloud.set(data, forKey: key)
+        icloud.synchronize()
+    }
+
+    /// Called when iCloud pushes changes from another device.
+    /// We merge by UUID: remote services not present locally are added; existing ones are updated
+    /// only if the remote copy is newer (has a later lastChecked date or local is unknown status).
+    private func mergeFromiCloud() {
+        guard let data = icloud.data(forKey: key),
+              let remote = try? decoder.decode([Service].self, from: data)
+        else { return }
+
+        var merged = services
+        for var remoteService in remote {
+            // Restore credentials from local Keychain for the remote service
+            remoteService.apiKey   = KeychainHelper.load(account: keychainKey("apikey",   id: remoteService.id))
+            remoteService.username = KeychainHelper.load(account: keychainKey("username", id: remoteService.id))
+            remoteService.password = KeychainHelper.load(account: keychainKey("password", id: remoteService.id))
+
+            if let localIdx = merged.firstIndex(where: { $0.id == remoteService.id }) {
+                let local = merged[localIdx]
+                // Prefer whichever has a more recent lastChecked; fall back to remote for new fields
+                let useRemote: Bool
+                switch (local.lastChecked, remoteService.lastChecked) {
+                case (.none, .some): useRemote = true
+                case (.some, .none): useRemote = false
+                case (.some(let l), .some(let r)): useRemote = r > l
+                case (.none, .none): useRemote = false
+                }
+                if useRemote {
+                    // Preserve local credentials and live state
+                    var updated = remoteService
+                    updated.status        = local.status
+                    updated.latencyMs     = local.latencyMs
+                    updated.lastChecked   = local.lastChecked
+                    updated.httpStatusCode = local.httpStatusCode
+                    merged[localIdx] = updated
+                }
+            } else {
+                // New service from another device
+                merged.append(remoteService)
+            }
+        }
+        services = merged
+        // Persist merged result locally
+        let sanitized = merged.map { s -> Service in
+            var copy = s; copy.apiKey = nil; copy.username = nil; copy.password = nil; return copy
+        }
+        if let data = try? encoder.encode(sanitized) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
     }
 
     private func load() {

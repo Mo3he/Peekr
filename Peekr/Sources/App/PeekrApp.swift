@@ -22,7 +22,23 @@ struct PeekrApp: App {
                     scheduleBackgroundRefresh()
                 }
         }
+
+        #if targetEnvironment(macCatalyst)
+        MenuBarExtra("Peekr", systemImage: menuBarIcon) {
+            MenuBarStatusView()
+        }
+        #endif
     }
+
+    #if targetEnvironment(macCatalyst)
+    private var menuBarIcon: String {
+        let store = ServiceStore.shared
+        if store.services.contains(where: { $0.status == .offline })   { return "exclamationmark.circle.fill" }
+        if store.services.contains(where: { $0.status == .degraded })  { return "exclamationmark.triangle.fill" }
+        if store.services.allSatisfy({ $0.status == .online })         { return "checkmark.circle.fill" }
+        return "circle.dashed"
+    }
+    #endif
 
     private func scheduleBackgroundRefresh() {
         let request = BGAppRefreshTaskRequest(identifier: bgTaskID)
@@ -59,8 +75,8 @@ struct PeekrApp: App {
                         store.update(updated)
                     }
                 } catch {
-                    // Service went offline - notify if it was previously up
-                    if previousStatus == .online || previousStatus == .degraded {
+                    // Service went offline - notify if it was previously up and notifications are enabled
+                    if (previousStatus == .online || previousStatus == .degraded) && service.notificationsEnabled {
                         await NotificationService.postOfflineAlert(for: service)
                     }
                     await MainActor.run {
