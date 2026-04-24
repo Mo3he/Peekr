@@ -9,7 +9,7 @@ struct CopilotIntegration: ServiceIntegration {
                 label: "Status",
                 value: "No token",
                 icon: "key.slash",
-                color: .secondary
+                color: .orange
             )]
         }
 
@@ -21,21 +21,12 @@ struct CopilotIntegration: ServiceIntegration {
 
         var metrics: [ServiceMetric] = []
 
-        // Copilot subscription for the authenticated user
-        if let url = URL(string: "\(apiBase)/user/copilot_subscription"),
+        // Authenticated user - confirms token is valid
+        if let url = URL(string: "\(apiBase)/user"),
            let json = try? await fetchJSON(url: url, headers: headers) as? [String: Any] {
-            if let plan = (json["plan"] as? [String: Any])?["name"] as? String {
+            if let login = json["login"] as? String {
                 metrics.append(ServiceMetric(
-                    label: "Plan",
-                    value: plan,
-                    icon: "star.fill",
-                    color: .accentColor
-                ))
-            }
-            if let seat = json["assignee"] as? [String: Any],
-               let login = seat["login"] as? String {
-                metrics.append(ServiceMetric(
-                    label: "Seat",
+                    label: "Account",
                     value: "@\(login)",
                     icon: "person.fill",
                     color: .primary
@@ -43,30 +34,28 @@ struct CopilotIntegration: ServiceIntegration {
             }
         }
 
-        // Business usage (org-level) - available if the token has org read scope
-        if let url = URL(string: "\(apiBase)/copilot/usage"),
+        // Copilot subscription - plan_type is a top-level field, not nested
+        if let url = URL(string: "\(apiBase)/user/copilot_subscription"),
            let json = try? await fetchJSON(url: url, headers: headers) as? [String: Any] {
-            if let total = json["total_suggestions_count"] as? Int {
+            if let planType = json["plan_type"] as? String {
                 metrics.append(ServiceMetric(
-                    label: "Suggestions (30d)",
-                    value: formatCount(total),
-                    icon: "sparkles",
-                    color: .secondary
+                    label: "Plan",
+                    value: planType.replacingOccurrences(of: "_", with: " ").capitalized,
+                    icon: "star.fill",
+                    color: .accentColor
                 ))
             }
-            if let accepted = json["total_acceptances_count"] as? Int,
-               let total = json["total_suggestions_count"] as? Int, total > 0 {
-                let rate = Int(Double(accepted) / Double(total) * 100)
+            if let seatType = json["seat_type"] as? String {
                 metrics.append(ServiceMetric(
-                    label: "Acceptance rate",
-                    value: "\(rate)%",
-                    icon: "checkmark.seal.fill",
-                    color: rate >= 30 ? .green : rate >= 15 ? .orange : .red
+                    label: "Seat type",
+                    value: seatType.replacingOccurrences(of: "_", with: " ").capitalized,
+                    icon: "person.badge.key.fill",
+                    color: .secondary
                 ))
             }
         }
 
-        // Fallback: rate limit shows the token is valid
+        // API rate limit - always works with any valid token
         if let url = URL(string: "\(apiBase)/rate_limit"),
            let json = try? await fetchJSON(url: url, headers: headers) as? [String: Any],
            let resources = json["resources"] as? [String: Any],
@@ -83,19 +72,11 @@ struct CopilotIntegration: ServiceIntegration {
             ))
         }
 
+        // If we have nothing at all, the token is likely invalid - throw so status shows degraded
         if metrics.isEmpty {
-            metrics.append(ServiceMetric(
-                label: "API",
-                value: "Connected",
-                icon: "checkmark.circle.fill",
-                color: .green
-            ))
+            throw IntegrationError.authFailed
         }
 
         return metrics
-    }
-
-    private func formatCount(_ n: Int) -> String {
-        n >= 1_000 ? String(format: "%.1fk", Double(n) / 1_000.0) : "\(n)"
     }
 }
