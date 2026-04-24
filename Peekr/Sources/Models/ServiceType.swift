@@ -169,7 +169,7 @@ enum ServiceType: String, Codable, CaseIterable {
         // causing a slow GET fallback. Use a lightweight API endpoint instead.
         case .proxmox:    return "/api2/json/version"
         case .nextcloud:  return "/status.php"
-        case .openWrt:    return "/cgi-bin/luci/"
+        case .openWrt:    return "/ubus"
         default: return nil
         }
     }
