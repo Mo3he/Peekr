@@ -107,8 +107,9 @@ struct ServiceWidgetProvider: AppIntentTimelineProvider {
 // MARK: - Helpers
 
 private func loadServices() -> [WidgetService] {
-    // Read from the App Group shared container so we see the same data as the main app.
-    let ud = UserDefaults(suiteName: "group.com.mblieden.peekr") ?? .standard
+    // PAID_ACCOUNT: switch to App Group suite when entitlement is active:
+    // let ud = UserDefaults(suiteName: "group.com.mblieden.peekr") ?? .standard
+    let ud = UserDefaults.standard
     guard let data = ud.data(forKey: servicesKey),
           let services = try? JSONDecoder().decode([WidgetService].self, from: data)
     else { return [] }

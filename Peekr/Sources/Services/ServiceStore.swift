@@ -14,26 +14,24 @@ final class ServiceStore: ObservableObject {
     private let decoder = JSONDecoder()
     private let icloud = NSUbiquitousKeyValueStore.default
 
-    /// Shared UserDefaults suite accessible by both the app and widget extension.
-    private let defaults: UserDefaults = {
-        UserDefaults(suiteName: "group.com.mblieden.peekr") ?? .standard
-    }()
+    // PAID_ACCOUNT: switch to App Group suite when entitlements are active:
+    // private let defaults = UserDefaults(suiteName: "group.com.mblieden.peekr") ?? .standard
+    private let defaults: UserDefaults = .standard
 
     private init() {
-        // Listen for iCloud changes pushed from other devices
-        NotificationCenter.default.addObserver(
-            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-            object: icloud,
-            queue: .main
-        ) { [weak self] notification in
-            guard let self else { return }
-            let reason = notification.userInfo?[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int
-            if reason == NSUbiquitousKeyValueStoreServerChange ||
-               reason == NSUbiquitousKeyValueStoreInitialSyncChange {
-                Task { @MainActor in self.mergeFromiCloud() }
-            }
-        }
-        icloud.synchronize()
+        // PAID_ACCOUNT: uncomment iCloud observer when ubiquity-kvstore entitlement is active
+        // NotificationCenter.default.addObserver(
+        //     forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+        //     object: icloud, queue: .main
+        // ) { [weak self] notification in
+        //     guard let self else { return }
+        //     let reason = notification.userInfo?[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int
+        //     if reason == NSUbiquitousKeyValueStoreServerChange ||
+        //        reason == NSUbiquitousKeyValueStoreInitialSyncChange {
+        //         Task { @MainActor in self.mergeFromiCloud() }
+        //     }
+        // }
+        // icloud.synchronize()
         load()
     }
 
@@ -78,11 +76,11 @@ final class ServiceStore: ObservableObject {
             return copy
         }
         guard let data = try? encoder.encode(sanitized) else { return }
-        // Write to App Group container so the widget can read it
+        // Write to UserDefaults (App Group suite when entitlements are active - see PAID_ACCOUNT above)
         defaults.set(data, forKey: key)
-        // Also push to iCloud KV store for cross-device sync
-        icloud.set(data, forKey: key)
-        icloud.synchronize()
+        // PAID_ACCOUNT: uncomment to push to iCloud KV store for cross-device sync
+        // icloud.set(data, forKey: key)
+        // icloud.synchronize()
     }
 
     /// Called when iCloud pushes changes from another device.
