@@ -15,17 +15,15 @@ struct ServiceLiveData {
 @MainActor
 final class HomeViewModel: ObservableObject {
     @Published var services: [Service] = []
-    /// Live display state updated on every check. Does NOT flow through `store.services`.
-    @Published var liveData: [UUID: ServiceLiveData] = [:]
-    @Published var metrics: [UUID: [ServiceMetric]] = [:]
-    @Published var metricsError: [UUID: String] = [:]
     @Published var isRefreshing = false
     @Published var lastRefreshed: Date?
     @Published var searchText = ""
     @Published var statusFilter: ServiceStatus? = nil
-
-    @Published private(set) var checkingIDs: Set<UUID> = []
     @Published private(set) var events: [StatusEvent] = []
+
+    /// Live per-service state lives here - in a SEPARATE ObservableObject so that
+    /// HomeView (which only observes HomeViewModel) is never re-rendered by refresh.
+    let live = LiveDataStore.shared
 
     @AppStorage("autoRefreshInterval") private var refreshInterval: Double = 30
 
@@ -59,10 +57,7 @@ final class HomeViewModel: ObservableObject {
             .store(in: &cancellables)
         // Seed live display state from persisted service data so the UI shows last-known values
         // before the first check completes.
-        liveData = Dictionary(uniqueKeysWithValues: store.services.map { s in
-            (s.id, ServiceLiveData(status: s.status, latencyMs: s.latencyMs,
-                                   httpStatusCode: s.httpStatusCode, lastChecked: s.lastChecked))
-        })
+        live.seed(from: store.services)
         loadEvents()
     }
 
@@ -95,26 +90,20 @@ final class HomeViewModel: ObservableObject {
         Array(Set(services.compactMap(\.group))).sorted()
     }
 
-    // MARK: - Computed counts
+    // MARK: - Computed counts (read from LiveDataStore)
 
     func effectiveStatus(for service: Service) -> ServiceStatus {
-        if checkingIDs.contains(service.id) { return .checking }
-        let status = liveData[service.id]?.status ?? service.status
-        // If off-WiFi and service is local-only, show as unknown rather than stale offline
-        if !network.canReachLocal && service.isLocalNetwork && status == .offline {
-            return .unknown
-        }
-        return status
+        live.effectiveStatus(for: service)
     }
 
-    var onlineCount: Int   { services.filter { (liveData[$0.id]?.status ?? $0.status) == .online   }.count }
-    var degradedCount: Int { services.filter { (liveData[$0.id]?.status ?? $0.status) == .degraded }.count }
-    var offlineCount: Int  { services.filter { (liveData[$0.id]?.status ?? $0.status) == .offline  }.count }
+    var onlineCount: Int   { services.filter { (live.liveData[$0.id]?.status ?? $0.status) == .online   }.count }
+    var degradedCount: Int { services.filter { (live.liveData[$0.id]?.status ?? $0.status) == .degraded }.count }
+    var offlineCount: Int  { services.filter { (live.liveData[$0.id]?.status ?? $0.status) == .offline  }.count }
 
     var overallHealth: ServiceStatus {
         if services.isEmpty { return .unknown }
         if isRefreshing { return .checking }
-        let statuses = services.map { liveData[$0.id]?.status ?? $0.status }
+        let statuses = services.map { live.liveData[$0.id]?.status ?? $0.status }
         if statuses.allSatisfy({ $0 == .online }) { return .online }
         if statuses.contains(.offline) { return .offline }
         if statuses.contains(.degraded) { return .degraded }
@@ -148,10 +137,10 @@ final class HomeViewModel: ObservableObject {
         if !network.canReachLocal && service.isLocalNetwork { return }
         guard store.services.contains(where: { $0.id == service.id }) else { return }
 
-        checkingIDs.insert(service.id)
-        defer { checkingIDs.remove(service.id) }
+        live.setChecking(service.id, true)
+        defer { live.setChecking(service.id, false) }
 
-        let previousStatus = liveData[service.id]?.status ?? service.status
+        let previousStatus = live.liveData[service.id]?.status ?? service.status
         var updated = service
 
         if !service.serviceType.isCloudService {
@@ -167,10 +156,10 @@ final class HomeViewModel: ObservableObject {
                 updated.latencyMs      = nil
                 updated.httpStatusCode = nil
                 updated.lastChecked    = Date()
-                liveData[service.id]   = ServiceLiveData(status: .offline, lastChecked: updated.lastChecked)
+                live.setLive(ServiceLiveData(status: .offline, lastChecked: updated.lastChecked), for: service.id)
                 store.update(updated)
-                metrics[service.id] = []
-                metricsError.removeValue(forKey: service.id)
+                live.setMetrics([], for: service.id)
+                live.setError(nil, for: service.id)
                 recordTransition(previousStatus: previousStatus, service: updated)
                 historyStore.record(serviceID: service.id, status: .offline, latencyMs: nil)
                 uptimeStore.record(serviceID: service.id, status: .offline)
@@ -179,9 +168,9 @@ final class HomeViewModel: ObservableObject {
         }
 
         updated.lastChecked = Date()
-        liveData[updated.id] = ServiceLiveData(status: updated.status, latencyMs: updated.latencyMs,
-                                               httpStatusCode: updated.httpStatusCode,
-                                               lastChecked: updated.lastChecked)
+        live.setLive(ServiceLiveData(status: updated.status, latencyMs: updated.latencyMs,
+                                     httpStatusCode: updated.httpStatusCode,
+                                     lastChecked: updated.lastChecked), for: updated.id)
         store.update(updated)
         recordTransition(previousStatus: previousStatus, service: updated)
         if !service.serviceType.isCloudService {
@@ -193,24 +182,24 @@ final class HomeViewModel: ObservableObject {
         do {
             var fetched = try await integration.fetchMetrics(service: updated)
             fetched = applyMetricOrder(fetched, serviceID: updated.id)
-            metrics[updated.id] = fetched
-            metricsError.removeValue(forKey: updated.id)
+            live.setMetrics(fetched, for: updated.id)
+            live.setError(nil, for: updated.id)
             // For cloud services, set status based on whether metrics fetch succeeded
             if service.serviceType.isCloudService && updated.status == .unknown {
                 updated.status = fetched.isEmpty ? .degraded : .online
-                liveData[updated.id]?.status = updated.status
+                live.liveData[updated.id]?.status = updated.status
             }
         } catch let error as IntegrationError where error == .authFailed {
-            metrics[updated.id] = []
-            metricsError[updated.id] = "Authentication failed. Check your credentials in Edit."
+            live.setMetrics([], for: updated.id)
+            live.setError("Authentication failed. Check your credentials in Edit.", for: updated.id)
             if service.serviceType.isCloudService {
-                liveData[updated.id]?.status = .degraded
+                live.liveData[updated.id]?.status = .degraded
             }
         } catch {
-            metrics[updated.id] = []
-            metricsError[updated.id] = error.localizedDescription
+            live.setMetrics([], for: updated.id)
+            live.setError(error.localizedDescription, for: updated.id)
             if service.serviceType.isCloudService {
-                liveData[updated.id]?.status = .degraded
+                live.liveData[updated.id]?.status = .degraded
             }
         }
     }
@@ -218,7 +207,7 @@ final class HomeViewModel: ObservableObject {
     // MARK: - Mutations
 
     func addService(_ service: Service) {
-        liveData[service.id] = ServiceLiveData(status: .unknown)
+        live.setLive(ServiceLiveData(status: .unknown), for: service.id)
         store.add(service)
         Task { await checkAndFetch(service) }
     }
@@ -236,15 +225,13 @@ final class HomeViewModel: ObservableObject {
         copy.lastChecked = nil
         copy.latencyMs = nil
         copy.httpStatusCode = nil
-        liveData[copy.id] = ServiceLiveData(status: .unknown)
+        live.setLive(ServiceLiveData(status: .unknown), for: copy.id)
         store.add(copy)
         Task { await checkAndFetch(copy) }
     }
 
     func removeService(_ service: Service) {
-        liveData.removeValue(forKey: service.id)
-        metrics.removeValue(forKey: service.id)
-        metricsError.removeValue(forKey: service.id)
+        live.remove(id: service.id)
         removeMetricOrder(for: service.id)
         historyStore.remove(serviceID: service.id)
         uptimeStore.remove(serviceID: service.id)
@@ -254,9 +241,7 @@ final class HomeViewModel: ObservableObject {
     func removeServices(at offsets: IndexSet) {
         for idx in offsets {
             let id = services[idx].id
-            liveData.removeValue(forKey: id)
-            metrics.removeValue(forKey: id)
-            metricsError.removeValue(forKey: id)
+            live.remove(id: id)
             removeMetricOrder(for: id)
             historyStore.remove(serviceID: id)
             uptimeStore.remove(serviceID: id)
@@ -294,7 +279,7 @@ final class HomeViewModel: ObservableObject {
     // MARK: - Status events
 
     private func recordTransition(previousStatus old: ServiceStatus, service: Service) {
-        let new = liveData[service.id]?.status ?? service.status
+        let new = live.liveData[service.id]?.status ?? service.status
         guard old != new, old != .unknown, old != .checking else { return }
         let event = StatusEvent(
             serviceID: service.id,
@@ -351,7 +336,7 @@ final class HomeViewModel: ObservableObject {
         visible.move(fromOffsets: source, toOffset: destination)
         let hidden = hiddenMetricItems(for: serviceID)
         let newFull = visible + hidden
-        metrics[serviceID] = newFull
+        live.setMetrics(newFull, for: serviceID)
         var order = metricOrder
         order[serviceID.uuidString] = newFull.map(\.label)
         metricOrder = order
@@ -391,13 +376,13 @@ final class HomeViewModel: ObservableObject {
     }
 
     func visibleMetrics(for serviceID: UUID) -> [ServiceMetric] {
-        let all = metrics[serviceID] ?? []
+        let all = live.metrics[serviceID] ?? []
         let hidden = Set(hiddenMetricsStore[serviceID.uuidString] ?? [])
         return all.filter { !hidden.contains($0.label) }
     }
 
     func hiddenMetricItems(for serviceID: UUID) -> [ServiceMetric] {
-        let all = metrics[serviceID] ?? []
+        let all = live.metrics[serviceID] ?? []
         let hidden = Set(hiddenMetricsStore[serviceID.uuidString] ?? [])
         return all.filter { hidden.contains($0.label) }
     }
@@ -409,7 +394,7 @@ final class HomeViewModel: ObservableObject {
         if isHidden { set.insert(label) } else { set.remove(label) }
         hm[key] = Array(set)
         hiddenMetricsStore = hm
-        objectWillChange.send()
+        live.objectWillChange.send()
     }
 
     // MARK: - Export / Import
@@ -459,16 +444,17 @@ final class HomeViewModel: ObservableObject {
         guard !current.isEmpty else { return }
 
         // Accumulate all results locally; apply in one batch at the end.
-        var newLiveData  = liveData
-        var newMetrics   = metrics
-        var newErrors    = metricsError
+        // These never touch vm.services or any @Published on HomeViewModel.
+        var newLiveData  = live.liveData
+        var newMetrics   = live.metrics
+        var newErrors    = live.metricsError
 
         for service in current {
             guard !Task.isCancelled else { break }
 
             if !force {
                 let interval = service.checkInterval ?? refreshInterval
-                let lastCheck = liveData[service.id]?.lastChecked ?? service.lastChecked
+                let lastCheck = live.liveData[service.id]?.lastChecked ?? service.lastChecked
                 let due = lastCheck.map { now.timeIntervalSince($0) >= interval } ?? true
                 guard due else { continue }
             }
@@ -476,29 +462,28 @@ final class HomeViewModel: ObservableObject {
             if !network.canReachLocal && service.isLocalNetwork { continue }
             guard store.services.contains(where: { $0.id == service.id }) else { continue }
 
-            let previousStatus = liveData[service.id]?.status ?? service.status
-            var live = ServiceLiveData(lastChecked: Date())
+            let previousStatus = live.liveData[service.id]?.status ?? service.status
+            var liveEntry = ServiceLiveData(lastChecked: Date())
 
             if service.serviceType.isCloudService {
-                // Cloud services: skip the ping, go straight to metrics.
                 let integration = IntegrationProvider.integration(for: service)
                 do {
                     var fetched = try await integration.fetchMetrics(service: service)
                     fetched = applyMetricOrder(fetched, serviceID: service.id)
-                    live.status = fetched.isEmpty ? .degraded : .online
-                    newLiveData[service.id] = live
+                    liveEntry.status = fetched.isEmpty ? .degraded : .online
+                    newLiveData[service.id] = liveEntry
                     newMetrics[service.id]  = fetched
                     newErrors.removeValue(forKey: service.id)
-                    var tmp = service; tmp.status = live.status
+                    var tmp = service; tmp.status = liveEntry.status
                     recordTransition(previousStatus: previousStatus, service: tmp)
                 } catch let e as IntegrationError where e == .authFailed {
-                    live.status = .degraded
-                    newLiveData[service.id] = live
+                    liveEntry.status = .degraded
+                    newLiveData[service.id] = liveEntry
                     newMetrics[service.id]  = []
                     newErrors[service.id]   = "Authentication failed. Check your credentials in Edit."
                 } catch {
-                    live.status = .degraded
-                    newLiveData[service.id] = live
+                    liveEntry.status = .degraded
+                    newLiveData[service.id] = liveEntry
                     newMetrics[service.id]  = []
                     newErrors[service.id]   = error.localizedDescription
                 }
@@ -507,14 +492,14 @@ final class HomeViewModel: ObservableObject {
 
             do {
                 let result  = try await PingService.shared.check(service)
-                live.latencyMs      = result.latencyMs
-                live.httpStatusCode = result.httpStatusCode
-                live.status = result.httpStatusCode.map {
+                liveEntry.latencyMs      = result.latencyMs
+                liveEntry.httpStatusCode = result.httpStatusCode
+                liveEntry.status = result.httpStatusCode.map {
                     (200..<400).contains($0) || $0 == 401 || $0 == 403 ? .online : .degraded
                 } ?? .online
             } catch {
-                live.status = .offline
-                newLiveData[service.id] = live
+                liveEntry.status = .offline
+                newLiveData[service.id] = liveEntry
                 newMetrics[service.id]  = []
                 newErrors.removeValue(forKey: service.id)
                 var tmp = service; tmp.status = .offline
@@ -524,11 +509,11 @@ final class HomeViewModel: ObservableObject {
                 continue
             }
 
-            newLiveData[service.id] = live
-            var tmp = service; tmp.status = live.status
+            newLiveData[service.id] = liveEntry
+            var tmp = service; tmp.status = liveEntry.status
             recordTransition(previousStatus: previousStatus, service: tmp)
-            historyStore.record(serviceID: service.id, status: live.status, latencyMs: live.latencyMs)
-            uptimeStore.record(serviceID: service.id, status: live.status)
+            historyStore.record(serviceID: service.id, status: liveEntry.status, latencyMs: liveEntry.latencyMs)
+            uptimeStore.record(serviceID: service.id, status: liveEntry.status)
 
             let integration = IntegrationProvider.integration(for: service)
             do {
@@ -545,11 +530,9 @@ final class HomeViewModel: ObservableObject {
             }
         }
 
-        // Apply all state in one synchronous block. `services` is untouched → the
-        // List's ForEach identity is 100% stable → scroll position is preserved.
-        liveData     = newLiveData   // 1 publish
-        metrics      = newMetrics    // 1 publish
-        metricsError = newErrors     // 1 publish
+        // Apply to LiveDataStore - completely separate from HomeViewModel's @Published properties.
+        // HomeView never observes LiveDataStore, so the List is never re-rendered by this.
+        live.applyBatch(liveData: newLiveData, metrics: newMetrics, errors: newErrors)
         lastRefreshed = Date()
     }
 

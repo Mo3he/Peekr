@@ -2,16 +2,15 @@ import SwiftUI
 
 struct ServiceRowView: View {
     let service: Service
-    let metrics: [ServiceMetric]
-    var effectiveStatus: ServiceStatus
-    /// Live values from HomeViewModel.liveData — take priority over the service struct fields.
-    var liveLatencyMs: Double? = nil
-    var liveHttpStatusCode: Int? = nil
-    var liveLastChecked: Date? = nil
+    @ObservedObject private var live = LiveDataStore.shared
 
-    private var displayLatency: Double?     { liveLatencyMs      ?? service.latencyMs }
-    private var displayCode: Int?           { liveHttpStatusCode  ?? service.httpStatusCode }
-    private var displayLastChecked: Date?   { liveLastChecked     ?? service.lastChecked }
+    private var liveEntry: ServiceLiveData? { live.liveData[service.id] }
+    private var metrics: [ServiceMetric] { live.metrics[service.id] ?? [] }
+    private var effectiveStatus: ServiceStatus { live.effectiveStatus(for: service) }
+
+    private var displayLatency: Double?     { liveEntry?.latencyMs      ?? service.latencyMs }
+    private var displayCode: Int?           { liveEntry?.httpStatusCode  ?? service.httpStatusCode }
+    private var displayLastChecked: Date?   { liveEntry?.lastChecked     ?? service.lastChecked }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

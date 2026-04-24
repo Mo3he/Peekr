@@ -3,17 +3,18 @@ import SwiftUI
 struct ServiceDetailView: View {
     let serviceID: UUID
     @ObservedObject var vm: HomeViewModel
+    @ObservedObject private var live = LiveDataStore.shared
 
-    @Environment(\.openURL) private var openURL
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\..openURL) private var openURL
+    @Environment(\..dismiss) private var dismiss
     @State private var editingService: Service?
 
     private var service: Service? { vm.services.first { $0.id == serviceID } }
-    private var metrics: [ServiceMetric] { vm.metrics[serviceID] ?? [] }
-    private var metricsError: String? { vm.metricsError[serviceID] }
+    private var metrics: [ServiceMetric] { live.metrics[serviceID] ?? [] }
+    private var metricsError: String? { live.metricsError[serviceID] }
     private var effectiveStatus: ServiceStatus {
         guard let service else { return .unknown }
-        return vm.effectiveStatus(for: service)
+        return live.effectiveStatus(for: service)
     }
     private var history: [StatusSnapshot] {
         StatusHistoryStore.shared.snapshots(for: serviceID)
@@ -46,7 +47,7 @@ struct ServiceDetailView: View {
                         Button {
                             Task { await vm.checkAndFetch(service) }
                         } label: {
-                            if vm.checkingIDs.contains(serviceID) {
+                            if live.checkingIDs.contains(serviceID) {
                                 ProgressView().scaleEffect(0.8)
                             } else {
                                 Image(systemName: "arrow.clockwise")

@@ -184,61 +184,10 @@ struct HomeView: View {
 
     // MARK: - Sections
 
+    // Delegate to a separate struct that observes LiveDataStore.
+    // This way live data changes never cause HomeView body (and the List) to re-evaluate.
     private var overallStatusSection: some View {
-        Section {
-            HStack(spacing: 16) {
-                StatusIndicatorView(status: vm.overallHealth, size: 50)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(vm.overallHealth.label)
-                        .font(.title3.bold())
-
-                    HStack(spacing: 6) {
-                        Label("\(vm.onlineCount) online", systemImage: "circle.fill")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.green)
-                            .labelStyle(CompactLabelStyle())
-                        // Always reserve space for degraded/offline labels to keep section height stable
-                        Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
-                            .opacity(vm.degradedCount > 0 ? 1 : 0)
-                        Label("\(vm.degradedCount) degraded", systemImage: "circle.fill")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.orange)
-                            .labelStyle(CompactLabelStyle())
-                            .opacity(vm.degradedCount > 0 ? 1 : 0)
-                        Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
-                            .opacity(vm.offlineCount > 0 ? 1 : 0)
-                        Label("\(vm.offlineCount) offline", systemImage: "circle.fill")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.red)
-                            .labelStyle(CompactLabelStyle())
-                            .opacity(vm.offlineCount > 0 ? 1 : 0)
-                    }
-                }
-
-                Spacer()
-
-                // Always reserve space for the timestamp so the section never changes height
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("checked")
-                        .font(.caption2)
-                        .foregroundStyle(.quaternary)
-                    if let date = vm.lastRefreshed {
-                        Text(date, style: .relative)
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .monospacedDigit()
-                    } else {
-                        Text("–")
-                            .font(.caption)
-                            .foregroundStyle(.clear)
-                    }
-                }
-            }
-            .padding(.vertical, 6)
-        } header: {
-            Text("Overall Health")
-        }
+        OverallStatusSection(vm: vm)
     }
 
     // MARK: - Services (grouped or flat)
@@ -277,14 +226,7 @@ struct HomeView: View {
                 Button {
                     detailService = service
                 } label: {
-                    ServiceRowView(
-                        service: service,
-                        metrics: vm.metrics[service.id] ?? [],
-                        effectiveStatus: vm.effectiveStatus(for: service),
-                        liveLatencyMs: vm.liveData[service.id]?.latencyMs,
-                        liveHttpStatusCode: vm.liveData[service.id]?.httpStatusCode,
-                        liveLastChecked: vm.liveData[service.id]?.lastChecked
-                    )
+                ServiceRowView(service: service)
                     .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
@@ -367,5 +309,81 @@ struct HomeView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 48)
         .listRowBackground(Color.clear)
+    }
+}
+
+/// Isolated view that observes LiveDataStore for live counts and health status.
+/// By putting this in its own struct, only THIS view re-renders on live data changes,
+/// not the parent HomeView that owns the List.
+private struct OverallStatusSection: View {
+    let vm: HomeViewModel
+    @ObservedObject private var live = LiveDataStore.shared
+
+    private var onlineCount: Int   { vm.services.filter { (live.liveData[$0.id]?.status ?? $0.status) == .online   }.count }
+    private var degradedCount: Int { vm.services.filter { (live.liveData[$0.id]?.status ?? $0.status) == .degraded }.count }
+    private var offlineCount: Int  { vm.services.filter { (live.liveData[$0.id]?.status ?? $0.status) == .offline  }.count }
+    private var overallHealth: ServiceStatus {
+        if vm.services.isEmpty { return .unknown }
+        if vm.isRefreshing { return .checking }
+        let statuses = vm.services.map { live.liveData[$0.id]?.status ?? $0.status }
+        if statuses.allSatisfy({ $0 == .online }) { return .online }
+        if statuses.contains(.offline) { return .offline }
+        if statuses.contains(.degraded) { return .degraded }
+        return .unknown
+    }
+
+    var body: some View {
+        Section {
+            HStack(spacing: 16) {
+                StatusIndicatorView(status: overallHealth, size: 50)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(overallHealth.label)
+                        .font(.title3.bold())
+
+                    HStack(spacing: 6) {
+                        Label("\(onlineCount) online", systemImage: "circle.fill")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.green)
+                            .labelStyle(CompactLabelStyle())
+                        Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
+                            .opacity(degradedCount > 0 ? 1 : 0)
+                        Label("\(degradedCount) degraded", systemImage: "circle.fill")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.orange)
+                            .labelStyle(CompactLabelStyle())
+                            .opacity(degradedCount > 0 ? 1 : 0)
+                        Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
+                            .opacity(offlineCount > 0 ? 1 : 0)
+                        Label("\(offlineCount) offline", systemImage: "circle.fill")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.red)
+                            .labelStyle(CompactLabelStyle())
+                            .opacity(offlineCount > 0 ? 1 : 0)
+                    }
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("checked")
+                        .font(.caption2)
+                        .foregroundStyle(.quaternary)
+                    if let date = vm.lastRefreshed {
+                        Text(date, style: .relative)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                    } else {
+                        Text("\u{2013}")
+                            .font(.caption)
+                            .foregroundStyle(.clear)
+                    }
+                }
+            }
+            .padding(.vertical, 6)
+        } header: {
+            Text("Overall Health")
+        }
     }
 }
