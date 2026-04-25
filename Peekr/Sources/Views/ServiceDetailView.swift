@@ -217,7 +217,7 @@ struct ServiceDetailView: View {
     private var historySection: some View {
         if !history.isEmpty {
             Section("Recent Checks") {
-                ForEach(history.prefix(10)) { snap in
+                ForEach(history.reversed().prefix(10)) { snap in
                     HStack {
                         Image(systemName: snap.status.icon)
                             .foregroundStyle(snap.status.color)
