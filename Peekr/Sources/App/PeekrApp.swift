@@ -2,9 +2,46 @@ import SwiftUI
 import BackgroundTasks
 import UserNotifications
 
+// MARK: - Notification name
+
+extension Notification.Name {
+    static let openSummarySchedule = Notification.Name("peekr.openSummarySchedule")
+}
+
+// MARK: - UNUserNotificationCenterDelegate
+
+/// Handles notification taps so that tapping a summary notification navigates into the app.
+private final class NotificationResponseHandler: NSObject, UNUserNotificationCenterDelegate {
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        let id = response.notification.request.identifier
+        if id.hasPrefix("summary-"),
+           let uuid = UUID(uuidString: String(id.dropFirst("summary-".count))) {
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: .openSummarySchedule,
+                    object: nil,
+                    userInfo: ["scheduleID": uuid]
+                )
+            }
+        }
+        completionHandler()
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound, .badge])
+    }
+}
+
+// MARK: - App
+
 @main
 struct PeekrApp: App {
     private let bgTaskID = "com.mblieden.peekr.refresh"
+    private let notifDelegate = NotificationResponseHandler()
 
     init() {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: bgTaskID, using: nil) { task in
@@ -13,6 +50,7 @@ struct PeekrApp: App {
         }
         // Request notification permission on first launch - non-blocking
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        UNUserNotificationCenter.current().delegate = notifDelegate
     }
 
     var body: some Scene {

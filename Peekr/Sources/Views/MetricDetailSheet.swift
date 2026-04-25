@@ -3,12 +3,55 @@ import SwiftUI
 struct MetricDetailSheet: View {
     let metric: ServiceMetric
     let serviceName: String
+    let serviceID: UUID
     @Environment(\.dismiss) private var dismiss
+
+    private var history: [MetricSnapshot] {
+        MetricHistoryStore.shared.snapshots(serviceID: serviceID, label: metric.label)
+    }
+
+    // MARK: - Trend
+
+    private enum TrendDirection {
+        case up, down, stable
+
+        var systemImage: String {
+            switch self {
+            case .up:     return "arrow.up"
+            case .down:   return "arrow.down"
+            case .stable: return "minus"
+            }
+        }
+        var label: String {
+            switch self {
+            case .up:     return "Rising"
+            case .down:   return "Falling"
+            case .stable: return "Stable"
+            }
+        }
+    }
+
+    private var trendDirection: TrendDirection {
+        guard history.count >= 3 else { return .stable }
+        let ref = history[max(0, history.count - 4)]
+        let cur = history[history.count - 1]
+        guard let refVal = numericPrefix(ref.value),
+              let curVal = numericPrefix(cur.value) else { return .stable }
+        let delta = curVal - refVal
+        let threshold = max(abs(refVal) * 0.04, 0.1)
+        if delta > threshold  { return .up }
+        if delta < -threshold { return .down }
+        return .stable
+    }
+
+    private func numericPrefix(_ s: String) -> Double? {
+        Scanner(string: s).scanDouble()
+    }
 
     var body: some View {
         NavigationStack {
             List {
-                // Current value
+                // Current value + trend
                 Section {
                     HStack(spacing: 14) {
                         ZStack {
@@ -25,10 +68,41 @@ struct MetricDetailSheet: View {
                             Text(metric.value)
                                 .font(.title2.monospacedDigit().bold())
                                 .foregroundStyle(metric.isAlert ? metric.color : .primary)
+                            if history.count >= 3 {
+                                let t = trendDirection
+                                Label(t.label, systemImage: t.systemImage)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         Spacer()
                     }
                     .padding(.vertical, 4)
+                }
+
+                // Recent readings
+                if history.count >= 2 {
+                    Section("Recent readings") {
+                        ForEach(Array(history.reversed().prefix(10))) { snap in
+                            HStack(spacing: 10) {
+                                Circle()
+                                    .fill(snap.isAlert ? Color.orange : Color.green)
+                                    .frame(width: 8, height: 8)
+                                Text(snap.value)
+                                    .font(.subheadline.monospacedDigit())
+                                Spacer()
+                                Text(snap.timestamp, style: .relative) + Text(" ago")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } else {
+                    Section("Recent readings") {
+                        Text("Refresh this service a few more times to build up a reading history.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 // Description

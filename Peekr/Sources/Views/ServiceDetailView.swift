@@ -67,7 +67,7 @@ struct ServiceDetailView: View {
                     AddServiceView(existing: svc) { vm.updateService($0) }
                 }
                 .sheet(item: $selectedMetric) { metric in
-                    MetricDetailSheet(metric: metric, serviceName: vm.services.first { $0.id == serviceID }?.name ?? "")
+                    MetricDetailSheet(metric: metric, serviceName: vm.services.first { $0.id == serviceID }?.name ?? "", serviceID: serviceID)
                 }
             }
         }

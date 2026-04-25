@@ -44,6 +44,7 @@ final class LiveDataStore: ObservableObject {
 
     func setMetrics(_ m: [ServiceMetric], for id: UUID) {
         metrics[id] = m
+        MetricHistoryStore.shared.record(serviceID: id, metrics: m)
     }
 
     func setError(_ error: String?, for id: UUID) {
@@ -57,6 +58,9 @@ final class LiveDataStore: ObservableObject {
         liveData     = newLD
         metrics      = newM
         metricsError = newE
+        for (id, m) in newM {
+            MetricHistoryStore.shared.record(serviceID: id, metrics: m)
+        }
     }
 
     func remove(id: UUID) {
@@ -65,6 +69,7 @@ final class LiveDataStore: ObservableObject {
         metricsError.removeValue(forKey: id)
         hiddenMetricLabels.removeValue(forKey: id)
         checkingIDs.remove(id)
+        MetricHistoryStore.shared.remove(serviceID: id)
     }
 
     func visibleMetrics(for id: UUID) -> [ServiceMetric] {

@@ -4,6 +4,7 @@ struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var showOnboarding = false
+    @State private var pendingSummary: MetricSummarySchedule?
 
     var body: some View {
         Group {
@@ -20,6 +21,14 @@ struct ContentView: View {
             OnboardingView {
                 hasCompletedOnboarding = true
                 showOnboarding = false
+            }
+        }
+        .sheet(item: $pendingSummary) { schedule in
+            SummaryDetailView(schedule: schedule)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSummarySchedule)) { note in
+            if let id = note.userInfo?["scheduleID"] as? UUID {
+                pendingSummary = SummaryNotificationManager.shared.schedules.first { $0.id == id }
             }
         }
     }
