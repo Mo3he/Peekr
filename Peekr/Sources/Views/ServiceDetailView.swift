@@ -153,7 +153,11 @@ struct ServiceDetailView: View {
         if !metrics.isEmpty || metricsError != nil {
             Section("Live Metrics") {
                 ForEach(visibleMetrics) { metric in
-                    HStack {
+                    HStack(spacing: 10) {
+                        Image(systemName: "line.3.horizontal")
+                            .foregroundStyle(.tertiary)
+                            .font(.subheadline)
+                            .frame(width: 20)
                         Image(systemName: metric.icon)
                             .foregroundStyle(metric.color)
                             .frame(width: 24)
@@ -163,13 +167,14 @@ struct ServiceDetailView: View {
                         Text(metric.value)
                             .font(.body.monospacedDigit())
                             .foregroundStyle(metric.isAlert ? metric.color : .secondary)
-                    }
-                    .contextMenu {
-                        Button(role: .destructive) {
+                        Button {
                             vm.setMetricHidden(true, serviceID: serviceID, label: metric.label)
                         } label: {
-                            Label("Hide Metric", systemImage: "eye.slash")
+                            Image(systemName: "eye.slash")
+                                .foregroundStyle(.tertiary)
+                                .font(.subheadline)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
                 .onMove { vm.moveMetrics(for: serviceID, from: $0, to: $1) }
@@ -208,7 +213,7 @@ struct ServiceDetailView: View {
             } header: {
                 Text("Hidden Metrics")
             } footer: {
-                Text("Tap the eye icon or long-press a metric to manage visibility.")
+                Text("Tap the eye icon to show a metric again.")
             }
         }
     }
