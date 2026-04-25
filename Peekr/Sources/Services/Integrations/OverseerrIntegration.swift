@@ -10,6 +10,7 @@ struct OverseerrIntegration: ServiceIntegration {
 
         async let statusResult   = fetchJSON(url: URL(string: "\(base)/api/v1/status")!, headers: headers)
         async let requestsResult = fetchJSON(url: URL(string: "\(base)/api/v1/request?take=1&filter=pending")!, headers: headers)
+        async let usersResult    = fetchJSON(url: URL(string: "\(base)/api/v1/user?take=1")!, headers: headers)
 
         var metrics: [ServiceMetric] = []
 
@@ -29,6 +30,12 @@ struct OverseerrIntegration: ServiceIntegration {
                 color: total > 0 ? .orange : .secondary,
                 isAlert: total > 0
             ))
+        }
+
+        if let usersRes = try? await usersResult as? [String: Any],
+           let pageInfo = usersRes["pageInfo"] as? [String: Any],
+           let userCount = pageInfo["results"] as? Int {
+            metrics.append(ServiceMetric(label: "Total users", value: "\(userCount)", icon: "person.2.fill", color: .secondary))
         }
 
         return metrics

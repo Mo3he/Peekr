@@ -4,8 +4,9 @@ struct FrigateIntegration: ServiceIntegration {
     func fetchMetrics(service: Service) async throws -> [ServiceMetric] {
         let base = baseURL(service)
 
-        async let statsResult = fetchJSON(url: URL(string: "\(base)/api/stats")!, headers: [:])
+        async let statsResult  = fetchJSON(url: URL(string: "\(base)/api/stats")!,  headers: [:])
         async let configResult = fetchJSON(url: URL(string: "\(base)/api/config")!, headers: [:])
+        async let eventsResult = fetchJSON(url: URL(string: "\(base)/api/events?limit=1")!, headers: [:])
 
         var metrics: [ServiceMetric] = []
 
@@ -32,6 +33,18 @@ struct FrigateIntegration: ServiceIntegration {
            let cameras = config["cameras"] as? [String: Any] {
             if metrics.isEmpty {
                 metrics.append(ServiceMetric(label: "Configured cameras", value: "\(cameras.count)", icon: "video.fill", color: .primary))
+            }
+        }
+
+        // Events today: Frigate doesn't expose a direct count, but /api/events returns a list we can count
+        if let events = try? await eventsResult as? [[String: Any]] {
+            // Fetch the full list without limit to get today's events
+            let todayStart = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+            async let allEventsResult = fetchJSON(url: URL(string: "\(base)/api/events?after=\(Int(todayStart))")!, headers: [:])
+            if let allEvents = try? await allEventsResult as? [[String: Any]] {
+                metrics.append(ServiceMetric(label: "Events today", value: "\(allEvents.count)", icon: "calendar.badge.clock", color: .secondary))
+            } else {
+                _ = events // no-op, just suppress warning
             }
         }
 

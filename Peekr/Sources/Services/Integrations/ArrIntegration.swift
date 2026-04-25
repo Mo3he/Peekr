@@ -10,12 +10,13 @@ struct ArrIntegration: ServiceIntegration {
         let headers = ["X-Api-Key": key]
         let isSonarr = service.serviceType == .sonarr
 
-        async let statusResult = fetchJSON(url: URL(string: "\(base)/api/v3/system/status")!, headers: headers)
-        async let queueResult  = fetchJSON(url: URL(string: "\(base)/api/v3/queue?pageSize=1")!, headers: headers)
-        async let itemsResult  = fetchJSON(
+        async let statusResult  = fetchJSON(url: URL(string: "\(base)/api/v3/system/status")!, headers: headers)
+        async let queueResult   = fetchJSON(url: URL(string: "\(base)/api/v3/queue?pageSize=1")!, headers: headers)
+        async let itemsResult   = fetchJSON(
             url: URL(string: isSonarr ? "\(base)/api/v3/series" : "\(base)/api/v3/movie")!,
             headers: headers
         )
+        async let diskResult    = fetchJSON(url: URL(string: "\(base)/api/v3/diskspace")!, headers: headers)
 
         var metrics: [ServiceMetric] = []
 
@@ -45,6 +46,15 @@ struct ArrIntegration: ServiceIntegration {
             let total = queue["totalRecords"] as? Int ?? 0
             if total > 0 {
                 metrics.append(ServiceMetric(label: "Queue", value: "\(total)", icon: "arrow.down.circle.fill", color: .blue))
+            }
+        }
+
+        if let disks = try? await diskResult as? [[String: Any]] {
+            let totalFree = disks.compactMap { $0["freeSpace"] as? Int }.reduce(0, +)
+            if totalFree > 0 {
+                let gb = Double(totalFree) / 1_073_741_824
+                let color: Color = gb < 10 ? .red : gb < 50 ? .orange : .primary
+                metrics.append(ServiceMetric(label: "Free space", value: String(format: "%.0f GB", gb), icon: "internaldrive", color: color, isAlert: gb < 10))
             }
         }
 

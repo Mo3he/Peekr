@@ -49,6 +49,13 @@ struct ProxmoxIntegration: ServiceIntegration {
                 totalVMs += vms.count
                 runningVMs += vms.filter { ($0["status"] as? String) == "running" }.count
             }
+            // LXC containers
+            if let ctURL = URL(string: "\(base)/api2/json/nodes/\(nodeName)/lxc"),
+               let ctJSON = try? await fetchJSON(url: ctURL, headers: headers) as? [String: Any],
+               let cts = ctJSON["data"] as? [[String: Any]] {
+                totalVMs += cts.count
+                runningVMs += cts.filter { ($0["status"] as? String) == "running" }.count
+            }
         }
         if totalVMs > 0 {
             metrics.append(ServiceMetric(label: "VMs running", value: "\(runningVMs)/\(totalVMs)", icon: "cpu.fill", color: runningVMs == totalVMs ? .green : .orange))

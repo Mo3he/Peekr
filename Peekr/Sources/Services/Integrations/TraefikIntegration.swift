@@ -4,8 +4,10 @@ struct TraefikIntegration: ServiceIntegration {
     func fetchMetrics(service: Service) async throws -> [ServiceMetric] {
         let base = baseURL(service)
         // Traefik dashboard API - no auth by default
-        async let overviewResult = fetchJSON(url: URL(string: "\(base)/api/overview")!, headers: [:])
-        async let routersResult  = fetchJSON(url: URL(string: "\(base)/api/http/routers")!, headers: [:])
+        async let overviewResult  = fetchJSON(url: URL(string: "\(base)/api/overview")!, headers: [:])
+        async let routersResult   = fetchJSON(url: URL(string: "\(base)/api/http/routers")!, headers: [:])
+        async let servicesResult  = fetchJSON(url: URL(string: "\(base)/api/http/services")!, headers: [:])
+        async let middlewareResult = fetchJSON(url: URL(string: "\(base)/api/http/middlewares")!, headers: [:])
 
         var metrics: [ServiceMetric] = []
 
@@ -24,6 +26,14 @@ struct TraefikIntegration: ServiceIntegration {
             if !errored.isEmpty {
                 metrics.append(ServiceMetric(label: "Errored routes", value: "\(errored.count)", icon: "exclamationmark.circle.fill", color: .red, isAlert: true))
             }
+        }
+
+        if let svcs = try? await servicesResult as? [[String: Any]] {
+            metrics.append(ServiceMetric(label: "Services", value: "\(svcs.count)", icon: "arrow.right.circle.fill", color: .secondary))
+        }
+
+        if let mws = try? await middlewareResult as? [[String: Any]] {
+            metrics.append(ServiceMetric(label: "Middlewares", value: "\(mws.count)", icon: "slider.horizontal.3", color: .secondary))
         }
 
         return metrics

@@ -23,15 +23,18 @@ struct QBittorrentIntegration: ServiceIntegration {
         if let c = cookie { headers["Cookie"] = "SID=\(c)" }
 
         guard let transferURL = URL(string: "\(base)/api/v2/transfer/info"),
-              let torrentsURL = URL(string: "\(base)/api/v2/torrents/info") else {
+              let torrentsURL = URL(string: "\(base)/api/v2/torrents/info"),
+              let freeSpaceURL = URL(string: "\(base)/api/v2/sync/maindata") else {
             throw IntegrationError.badURL
         }
 
-        async let transferResult = fetchJSON(url: transferURL, headers: headers)
-        async let torrentsResult = fetchJSON(url: torrentsURL, headers: headers)
+        async let transferResult  = fetchJSON(url: transferURL,  headers: headers)
+        async let torrentsResult  = fetchJSON(url: torrentsURL,  headers: headers)
+        async let mainDataResult  = fetchJSON(url: freeSpaceURL, headers: headers)
 
         let t        = try? await transferResult as? [String: Any]
         let torrents = try? await torrentsResult as? [[String: Any]]
+        let mainData = try? await mainDataResult as? [String: Any]
 
         // If both fail with no cookie, auth is probably required but not configured.
         if t == nil, torrents == nil, cookie == nil {
@@ -71,6 +74,13 @@ struct QBittorrentIntegration: ServiceIntegration {
                 icon: "arrow.down.circle",
                 color: .primary
             ))
+        }
+
+        if let md = mainData,
+           let serverState = md["server_state"] as? [String: Any],
+           let freeSpace = serverState["free_space_on_disk"] as? Int {
+            let gb = Double(freeSpace) / 1_073_741_824
+            metrics.append(ServiceMetric(label: "Free space", value: String(format: "%.0f GB", gb), icon: "internaldrive", color: gb < 10 ? .orange : .primary, isAlert: gb < 10))
         }
 
         return metrics

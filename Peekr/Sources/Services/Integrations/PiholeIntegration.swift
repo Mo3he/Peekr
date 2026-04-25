@@ -21,9 +21,22 @@ struct PiholeIntegration: ServiceIntegration {
         if let queries = data["dns_queries_today"] as? Int {
             metrics.append(ServiceMetric(label: "Queries today", value: "\(queries)", icon: "arrow.left.arrow.right", color: .secondary))
         }
+        if let qps = data["dns_queries_all_types"] as? Int, let uptime = data["gravity_last_updated"] as? [String: Any],
+           let _ = uptime["absolute"] as? Int {
+            // gravity last updated
+            let ts = (uptime["absolute"] as? TimeInterval).map { Date(timeIntervalSince1970: $0) }
+            if let ts {
+                let days = Int(Date().timeIntervalSince(ts) / 86400)
+                metrics.append(ServiceMetric(label: "Gravity updated", value: days == 0 ? "Today" : "\(days)d ago", icon: "list.bullet.clipboard", color: days > 7 ? .orange : .secondary))
+            }
+            _ = qps
+        }
         if let domains = data["domains_being_blocked"] as? Int {
             let formatted = domains > 1000 ? String(format: "%.0fk", Double(domains) / 1000) : "\(domains)"
             metrics.append(ServiceMetric(label: "Blocklist", value: formatted, icon: "list.bullet.clipboard", color: .secondary))
+        }
+        if let clients = data["unique_clients"] as? Int {
+            metrics.append(ServiceMetric(label: "Clients", value: "\(clients)", icon: "iphone.and.arrow.forward", color: .secondary))
         }
         if let status = data["status"] as? String {
             let enabled = status == "enabled"

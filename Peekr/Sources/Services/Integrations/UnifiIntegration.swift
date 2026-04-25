@@ -40,6 +40,9 @@ struct UnifiIntegration: ServiceIntegration {
                 case "www":
                     let latency = subsystem["latency"] as? Int ?? 0
                     metrics.append(ServiceMetric(label: "WAN latency", value: "\(latency) ms", icon: "globe", color: latency > 100 ? .orange : .primary))
+                    if let ip = subsystem["wan_ip"] as? String {
+                        metrics.append(ServiceMetric(label: "WAN IP", value: ip, icon: "network", color: .secondary))
+                    }
                 default:
                     break
                 }

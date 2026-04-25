@@ -14,7 +14,10 @@ struct NextcloudIntegration: ServiceIntegration {
         ]
 
         guard let url = URL(string: "\(base)/ocs/v2.php/apps/serverinfo/api/v1/info?format=json") else { throw IntegrationError.badURL }
-        let json = try await fetchJSON(url: url, headers: headers)
+        async let infoResult    = fetchJSON(url: url, headers: headers)
+        async let updatesResult = fetchJSON(url: URL(string: "\(base)/ocs/v2.php/apps/updatenotification/api/v1/applist/stable?format=json")!, headers: headers)
+
+        let json = try await infoResult
 
         guard let ocs   = (json as? [String: Any])?["ocs"] as? [String: Any],
               let data  = ocs["data"] as? [String: Any]
@@ -45,6 +48,16 @@ struct NextcloudIntegration: ServiceIntegration {
 
         if let activeUsers = (data["activeUsers"] as? [String: Any])?["last5minutes"] as? Int {
             metrics.append(ServiceMetric(label: "Active now", value: "\(activeUsers)", icon: "person.fill.checkmark", color: activeUsers > 0 ? .green : .secondary))
+        }
+
+        if let updatesJSON = try? await updatesResult as? [String: Any],
+           let updatesOcs = updatesJSON["ocs"] as? [String: Any],
+           let updatesData = updatesOcs["data"] as? [String: Any],
+           let apps = updatesData["apps"] as? [String: Any] {
+            let count = apps.count
+            if count > 0 {
+                metrics.append(ServiceMetric(label: "App updates", value: "\(count)", icon: "arrow.down.circle.fill", color: .orange, isAlert: true))
+            }
         }
 
         return metrics

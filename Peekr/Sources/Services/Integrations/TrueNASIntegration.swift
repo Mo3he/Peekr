@@ -8,9 +8,10 @@ struct TrueNASIntegration: ServiceIntegration {
         let base = baseURL(service)
         let headers = ["Authorization": "Bearer \(key)"]
 
-        async let sysResult   = fetchJSON(url: URL(string: "\(base)/api/v2.0/system/info")!, headers: headers)
-        async let poolResult  = fetchJSON(url: URL(string: "\(base)/api/v2.0/pool")!, headers: headers)
-        async let alertResult = fetchJSON(url: URL(string: "\(base)/api/v2.0/alert/list")!, headers: headers)
+        async let sysResult    = fetchJSON(url: URL(string: "\(base)/api/v2.0/system/info")!, headers: headers)
+        async let poolResult   = fetchJSON(url: URL(string: "\(base)/api/v2.0/pool")!, headers: headers)
+        async let alertResult  = fetchJSON(url: URL(string: "\(base)/api/v2.0/alert/list")!, headers: headers)
+        async let updateResult = fetchJSON(url: URL(string: "\(base)/api/v2.0/update/check_available")!, headers: headers)
 
         var metrics: [ServiceMetric] = []
 
@@ -41,6 +42,12 @@ struct TrueNASIntegration: ServiceIntegration {
             if !critical.isEmpty {
                 metrics.append(ServiceMetric(label: "Critical alerts", value: "\(critical.count)", icon: "exclamationmark.triangle.fill", color: .red, isAlert: true))
             }
+        }
+
+        if let update = try? await updateResult as? [String: Any],
+           let status = update["status"] as? String, status == "AVAILABLE" {
+            let version = update["version"] as? String ?? "Available"
+            metrics.append(ServiceMetric(label: "Update available", value: version, icon: "arrow.down.circle.fill", color: .orange, isAlert: true))
         }
 
         return metrics

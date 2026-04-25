@@ -9,9 +9,10 @@ struct HomeAssistantIntegration: ServiceIntegration {
 
         let headers = ["Authorization": "Bearer \(token)", "Content-Type": "application/json"]
 
-        // Fetch config (version) and states in parallel
-        async let configResult = fetchJSON(url: URL(string: "\(base)/api/config")!, headers: headers)
-        async let statesResult = fetchJSON(url: URL(string: "\(base)/api/states")!, headers: headers)
+        // Fetch config (version) and states in parallel, plus update info
+        async let configResult  = fetchJSON(url: URL(string: "\(base)/api/config")!,   headers: headers)
+        async let statesResult  = fetchJSON(url: URL(string: "\(base)/api/states")!,   headers: headers)
+        async let updatesResult = fetchJSON(url: URL(string: "\(base)/api/states/update_available")!, headers: headers)
 
         var metrics: [ServiceMetric] = []
 
@@ -62,6 +63,13 @@ struct HomeAssistantIntegration: ServiceIntegration {
                     isAlert: true
                 ))
             }
+        }
+
+        // Update available check - HA exposes this as a sensor entity
+        if let updateState = try? await updatesResult as? [String: Any],
+           let state = updateState["state"] as? String, state == "on" {
+            let version = ((updateState["attributes"] as? [String: Any])?["newest_version"] as? String) ?? "Available"
+            metrics.append(ServiceMetric(label: "Update available", value: version, icon: "arrow.down.circle.fill", color: .orange, isAlert: true))
         }
 
         return metrics

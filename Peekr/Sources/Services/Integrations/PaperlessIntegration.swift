@@ -29,6 +29,12 @@ struct PaperlessIntegration: ServiceIntegration {
             if let tags = stats["tags_total"] as? Int {
                 metrics.append(ServiceMetric(label: "Tags", value: "\(tags)", icon: "tag.fill", color: .secondary))
             }
+            if let correspondents = stats["correspondents_total"] as? Int, correspondents > 0 {
+                metrics.append(ServiceMetric(label: "Correspondents", value: "\(correspondents)", icon: "person.text.rectangle.fill", color: .secondary))
+            }
+            if let docTypes = stats["document_types_total"] as? Int, docTypes > 0 {
+                metrics.append(ServiceMetric(label: "Doc types", value: "\(docTypes)", icon: "list.bullet.rectangle.fill", color: .secondary))
+            }
         }
 
         if let tasks = try? await tasksResult as? [[String: Any]] {

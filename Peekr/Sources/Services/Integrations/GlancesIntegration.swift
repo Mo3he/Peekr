@@ -10,6 +10,7 @@ struct GlancesIntegration: ServiceIntegration {
         async let fs   = fetchJSON(url: URL(string: "\(api)/fs")!)
         async let load = fetchJSON(url: URL(string: "\(api)/load")!)
         async let net  = fetchJSON(url: URL(string: "\(api)/network")!)
+        async let swap = fetchJSON(url: URL(string: "\(api)/memswap")!)
 
         var metrics: [ServiceMetric] = []
 
@@ -67,6 +68,18 @@ struct GlancesIntegration: ServiceIntegration {
                 value: "↓\(rx)  ↑\(tx)",
                 icon: "arrow.up.arrow.down",
                 color: .blue
+            ))
+        }
+
+        if let s = try? await swap as? [String: Any],
+           let pct = s["percent"] as? Double, pct > 0 {
+            let used  = (s["used"]  as? Int).map { formatBytes($0) } ?? ""
+            let total = (s["total"] as? Int).map { formatBytes($0) } ?? ""
+            metrics.append(ServiceMetric(
+                label: "Swap",
+                value: total.isEmpty ? String(format: "%.1f%%", pct) : "\(used) / \(total)",
+                icon: "arrow.up.arrow.down.square",
+                color: gaugeColor(pct, warn: 50, crit: 80)
             ))
         }
 

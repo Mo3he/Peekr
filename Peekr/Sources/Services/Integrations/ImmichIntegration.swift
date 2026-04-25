@@ -8,8 +8,9 @@ struct ImmichIntegration: ServiceIntegration {
         let base = baseURL(service)
         let headers = ["x-api-key": key]
 
-        async let serverResult = fetchJSON(url: URL(string: "\(base)/api/server/about")!, headers: headers)
+        async let serverResult = fetchJSON(url: URL(string: "\(base)/api/server/about")!,      headers: headers)
         async let statsResult  = fetchJSON(url: URL(string: "\(base)/api/server/statistics")!, headers: headers)
+        async let albumsResult = fetchJSON(url: URL(string: "\(base)/api/albums?shared=false")!, headers: headers)
 
         var metrics: [ServiceMetric] = []
 
@@ -30,6 +31,10 @@ struct ImmichIntegration: ServiceIntegration {
                 let gb = Double(usage) / 1_073_741_824
                 metrics.append(ServiceMetric(label: "Storage used", value: String(format: "%.1f GB", gb), icon: "internaldrive", color: .secondary))
             }
+        }
+
+        if let albums = try? await albumsResult as? [[String: Any]] {
+            metrics.append(ServiceMetric(label: "Albums", value: "\(albums.count)", icon: "rectangle.stack.fill", color: .secondary))
         }
 
         return metrics
