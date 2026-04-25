@@ -168,15 +168,15 @@ final class HomeViewModel: ObservableObject {
         }
 
         updated.lastChecked = Date()
-        live.setLive(ServiceLiveData(status: updated.status, latencyMs: updated.latencyMs,
-                                     httpStatusCode: updated.httpStatusCode,
-                                     lastChecked: updated.lastChecked), for: updated.id)
-        store.update(updated)
         recordTransition(previousStatus: previousStatus, service: updated)
         if !service.serviceType.isCloudService {
             historyStore.record(serviceID: updated.id, status: updated.status, latencyMs: updated.latencyMs)
             uptimeStore.record(serviceID: updated.id, status: updated.status)
         }
+        live.setLive(ServiceLiveData(status: updated.status, latencyMs: updated.latencyMs,
+                                     httpStatusCode: updated.httpStatusCode,
+                                     lastChecked: updated.lastChecked), for: updated.id)
+        store.update(updated)
 
         let integration = IntegrationProvider.integration(for: updated)
         do {

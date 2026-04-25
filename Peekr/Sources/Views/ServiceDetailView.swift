@@ -4,7 +4,6 @@ struct ServiceDetailView: View {
     let serviceID: UUID
     @ObservedObject var vm: HomeViewModel
     @ObservedObject private var live = LiveDataStore.shared
-    @ObservedObject private var historyStore = StatusHistoryStore.shared
 
     @Environment(\..openURL) private var openURL
     @Environment(\..dismiss) private var dismiss
@@ -18,7 +17,7 @@ struct ServiceDetailView: View {
         return live.effectiveStatus(for: service)
     }
     private var history: [StatusSnapshot] {
-        historyStore.snapshots(for: serviceID)
+        StatusHistoryStore.shared.snapshots(for: serviceID)
     }
 
     var body: some View {
