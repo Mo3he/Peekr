@@ -6,6 +6,8 @@ struct SettingsView: View {
     @ObservedObject private var net = NetworkMonitor.shared
     @AppStorage("autoRefreshInterval") private var interval: Double = 30
     @AppStorage("bgRefreshInterval") private var bgInterval: Double = 900
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.isPresented) private var isPresented
     @State private var showImporter = false
     @State private var importResultMessage: String?
     @State private var showNotificationSchedules = false
@@ -122,6 +124,13 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if isPresented {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+            }
             .sheet(isPresented: $showNotificationSchedules) {
                 NotificationSchedulesView(vm: vm)
             }
