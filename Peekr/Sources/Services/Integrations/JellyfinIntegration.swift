@@ -11,7 +11,6 @@ struct JellyfinIntegration: ServiceIntegration {
         async let infoResult     = fetchJSON(url: URL(string: "\(base)/System/Info")!,           headers: headers)
         async let sessionsResult = fetchJSON(url: URL(string: "\(base)/Sessions?activeWithinSeconds=960")!, headers: headers)
         async let countsResult   = fetchJSON(url: URL(string: "\(base)/Items/Counts")!,          headers: headers)
-        async let storageResult  = fetchJSON(url: URL(string: "\(base)/System/Info")!,           headers: headers)
 
         var metrics: [ServiceMetric] = []
 
@@ -55,10 +54,6 @@ struct JellyfinIntegration: ServiceIntegration {
                 metrics.append(ServiceMetric(label: "Songs", value: "\(music)", icon: "music.note", color: .secondary))
             }
         }
-
-        // Storage used (from System/Info)
-        if let info = try? await storageResult as? [String: Any],
-           let cacheSize = info["CachePath"] as? String { _ = cacheSize } // placeholder - real disk info from InternalStoragePath isn't exposed
 
         return metrics
     }
