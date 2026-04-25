@@ -8,6 +8,7 @@ struct ServiceDetailView: View {
     @Environment(\..openURL) private var openURL
     @Environment(\..dismiss) private var dismiss
     @State private var editingService: Service?
+    @State private var reorderingMetrics = false
 
     private var service: Service? { vm.services.first { $0.id == serviceID } }
     private var metrics: [ServiceMetric] { live.metrics[serviceID] ?? [] }
@@ -30,7 +31,7 @@ struct ServiceDetailView: View {
                     metricsSection
                     historySection
                 }
-                .environment(\.editMode, .constant(.active))
+                .environment(\..editMode, .constant(reorderingMetrics ? .active : .inactive))
                 .refreshable { await vm.checkAndFetch(service) }
                 .listStyle(.insetGrouped)
                 .navigationTitle(service.name)
@@ -44,6 +45,14 @@ struct ServiceDetailView: View {
                         }
                     }
                     ToolbarItemGroup(placement: .topBarTrailing) {
+                        if !visibleMetrics.isEmpty {
+                            Button {
+                                withAnimation { reorderingMetrics.toggle() }
+                            } label: {
+                                Text(reorderingMetrics ? "Done" : "Reorder")
+                                    .font(.subheadline)
+                            }
+                        }
                         Button {
                             Task { await vm.checkAndFetch(service) }
                         } label: {
@@ -154,10 +163,16 @@ struct ServiceDetailView: View {
             Section("Live Metrics") {
                 ForEach(visibleMetrics) { metric in
                     HStack(spacing: 10) {
-                        Image(systemName: "line.3.horizontal")
-                            .foregroundStyle(.tertiary)
-                            .font(.subheadline)
-                            .frame(width: 20)
+                        if !reorderingMetrics {
+                            Button {
+                                vm.setMetricHidden(true, serviceID: serviceID, label: metric.label)
+                            } label: {
+                                Image(systemName: "eye.slash")
+                                    .foregroundStyle(.tertiary)
+                                    .font(.subheadline)
+                            }
+                            .buttonStyle(.plain)
+                        }
                         Image(systemName: metric.icon)
                             .foregroundStyle(metric.color)
                             .frame(width: 24)
@@ -167,14 +182,6 @@ struct ServiceDetailView: View {
                         Text(metric.value)
                             .font(.body.monospacedDigit())
                             .foregroundStyle(metric.isAlert ? metric.color : .secondary)
-                        Button {
-                            vm.setMetricHidden(true, serviceID: serviceID, label: metric.label)
-                        } label: {
-                            Image(systemName: "eye.slash")
-                                .foregroundStyle(.tertiary)
-                                .font(.subheadline)
-                        }
-                        .buttonStyle(.plain)
                     }
                 }
                 .onMove { vm.moveMetrics(for: serviceID, from: $0, to: $1) }
