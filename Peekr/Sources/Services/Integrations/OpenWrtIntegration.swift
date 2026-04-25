@@ -29,11 +29,10 @@ struct OpenWrtIntegration: ServiceIntegration {
             return [ServiceMetric(label: "Auth failed", value: "Check credentials", icon: "xmark.circle.fill", color: .red, isAlert: true)]
         }
 
-        // Fetch system info, board model, WAN status, and DHCP leases in parallel
-        async let infoResult   = ubusCall(url: ubusURL, session: session, object: "system",                    method: "info")
-        async let boardResult  = ubusCall(url: ubusURL, session: session, object: "system",                    method: "board")
-        async let wanResult    = ubusCall(url: ubusURL, session: session, object: "network.interface.wan",      method: "status")
-        async let dhcpResult   = ubusCall(url: ubusURL, session: session, object: "luci-rpc",                  method: "getDHCPLeases")
+        // Fetch system info, board model, and all interfaces in parallel
+        async let infoResult   = ubusCall(url: ubusURL, session: session, object: "system", method: "info")
+        async let boardResult  = ubusCall(url: ubusURL, session: session, object: "system", method: "board")
+        async let ifDumpResult = ubusCall(url: ubusURL, session: session, object: "network.interface", method: "dump")
 
         var metrics: [ServiceMetric] = []
 
@@ -67,27 +66,31 @@ struct OpenWrtIntegration: ServiceIntegration {
             metrics.append(ServiceMetric(label: "Model", value: model, icon: "wifi.router.fill", color: .secondary))
         }
 
-        if let wan = try? await wanResult {
-            let up = (wan["up"] as? Bool) == true
-            metrics.append(ServiceMetric(
-                label: "WAN",
-                value: up ? "Connected" : "Disconnected",
-                icon: up ? "network" : "network.slash",
-                color: up ? .green : .red,
-                isAlert: !up
-            ))
-            if let ipv4 = (wan["ipv4-address"] as? [[String: Any]])?.first,
-               let ip = ipv4["address"] as? String {
-                metrics.append(ServiceMetric(label: "WAN IP", value: ip, icon: "globe", color: .secondary))
+        // Find WAN interface dynamically (works on OpenWrt, EdgeRouter X, and other variants)
+        if let dump = try? await ifDumpResult,
+           let ifaces = dump["interface"] as? [[String: Any]] {
+            let wan = ifaces.first(where: { ($0["interface"] as? String)?.lowercased().contains("wan") == true && ($0["up"] as? Bool) == true })
+                   ?? ifaces.first(where: { ($0["up"] as? Bool) == true && ($0["interface"] as? String) != "loopback" && ($0["interface"] as? String) != "lo" && ($0["ipv4-address"] as? [[String: Any]])?.isEmpty == false })
+            if let wan {
+                let up = (wan["up"] as? Bool) == true
+                metrics.append(ServiceMetric(
+                    label: "WAN",
+                    value: up ? "Connected" : "Disconnected",
+                    icon: up ? "network" : "network.slash",
+                    color: up ? .green : .red,
+                    isAlert: !up
+                ))
+                if let ipv4 = (wan["ipv4-address"] as? [[String: Any]])?.first,
+                   let ip = ipv4["address"] as? String {
+                    metrics.append(ServiceMetric(label: "WAN IP", value: ip, icon: "globe", color: .secondary))
+                }
+            }
+            let activeCount = ifaces.filter { ($0["up"] as? Bool) == true && ($0["interface"] as? String) != "loopback" && ($0["interface"] as? String) != "lo" }.count
+            if activeCount > 0 {
+                metrics.append(ServiceMetric(label: "Active interfaces", value: "\(activeCount)", icon: "network", color: .secondary))
             }
         }
-        if let dhcp = try? await dhcpResult,
-           let leases = dhcp["ipv4leases"] as? [String: Any] {
-            let count = leases.count
-            if count > 0 {
-                metrics.append(ServiceMetric(label: "DHCP clients", value: "\(count)", icon: "iphone.and.arrow.forward", color: .secondary))
-            }
-        }
+
         return metrics
     }
 

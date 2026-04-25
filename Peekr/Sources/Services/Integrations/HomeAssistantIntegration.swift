@@ -68,15 +68,13 @@ struct HomeAssistantIntegration: ServiceIntegration {
                 let id = entity["entity_id"] as? String ?? ""
                 return id.hasPrefix("update.") && (entity["state"] as? String) == "on"
             }
-            if !pendingUpdates.isEmpty {
-                metrics.append(ServiceMetric(
-                    label: "Updates available",
-                    value: "\(pendingUpdates.count)",
-                    icon: "arrow.down.circle.fill",
-                    color: .orange,
-                    isAlert: true
-                ))
-            }
+            metrics.append(ServiceMetric(
+                label: "Updates available",
+                value: pendingUpdates.isEmpty ? "Up to date" : "\(pendingUpdates.count)",
+                icon: "arrow.down.circle.fill",
+                color: pendingUpdates.isEmpty ? .secondary : .orange,
+                isAlert: !pendingUpdates.isEmpty
+            ))
         }
 
         return metrics

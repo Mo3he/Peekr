@@ -50,12 +50,10 @@ struct ArrIntegration: ServiceIntegration {
         }
 
         if let disks = try? await diskResult as? [[String: Any]] {
-            let totalFree = disks.compactMap { $0["freeSpace"] as? Int }.reduce(0, +)
-            if totalFree > 0 {
-                let gb = Double(totalFree) / 1_073_741_824
-                let color: Color = gb < 10 ? .red : gb < 50 ? .orange : .primary
-                metrics.append(ServiceMetric(label: "Free space", value: String(format: "%.0f GB", gb), icon: "internaldrive", color: color, isAlert: gb < 10))
-            }
+            let totalFree = disks.compactMap { ($0["freeSpace"] as? NSNumber)?.int64Value }.reduce(0, +)
+            let gb = Double(totalFree) / 1_073_741_824
+            let color: Color = gb < 10 ? .red : gb < 50 ? .orange : .primary
+            metrics.append(ServiceMetric(label: "Free space", value: String(format: "%.0f GB", gb), icon: "internaldrive", color: color, isAlert: gb < 10))
         }
 
         return metrics

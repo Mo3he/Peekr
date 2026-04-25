@@ -16,7 +16,9 @@ struct PortainerIntegration: ServiceIntegration {
         metrics.append(ServiceMetric(label: "Environments", value: "\(endpoints.count)", icon: "server.rack", color: .primary))
 
         // Fetch containers for each endpoint (first 3)
-        var running = 0, stopped = 0, images = 0, volumes = 0
+        var running = 0, stopped = 0
+        var images: Int? = nil
+        var volumes: Int? = nil
         for ep in endpoints {
             guard let epID = ep["Id"] as? Int else { continue }
             async let containersResult = fetchJSON(url: URL(string: "\(base)/api/endpoints/\(epID)/docker/containers/json?all=true")!, headers: headers)
@@ -26,9 +28,9 @@ struct PortainerIntegration: ServiceIntegration {
                 running += containers.filter { ($0["State"] as? String) == "running" }.count
                 stopped += containers.filter { ($0["State"] as? String) != "running" }.count
             }
-            if let imgs = try? await imagesResult as? [[String: Any]] { images += imgs.count }
+            if let imgs = try? await imagesResult as? [[String: Any]] { images = (images ?? 0) + imgs.count }
             if let vols = try? await volumesResult as? [String: Any],
-               let list = vols["Volumes"] as? [[String: Any]] { volumes += list.count }
+               let list = vols["Volumes"] as? [[String: Any]] { volumes = (volumes ?? 0) + list.count }
         }
         if running + stopped > 0 {
             metrics.append(ServiceMetric(label: "Running", value: "\(running)", icon: "play.circle.fill", color: .green))
@@ -36,8 +38,8 @@ struct PortainerIntegration: ServiceIntegration {
                 metrics.append(ServiceMetric(label: "Stopped", value: "\(stopped)", icon: "stop.circle.fill", color: .red, isAlert: true))
             }
         }
-        if images > 0 { metrics.append(ServiceMetric(label: "Images", value: "\(images)", icon: "photo.stack.fill", color: .secondary)) }
-        if volumes > 0 { metrics.append(ServiceMetric(label: "Volumes", value: "\(volumes)", icon: "externaldrive.fill", color: .secondary)) }
+        if let images { metrics.append(ServiceMetric(label: "Images", value: "\(images)", icon: "photo.stack.fill", color: .secondary)) }
+        if let volumes { metrics.append(ServiceMetric(label: "Volumes", value: "\(volumes)", icon: "externaldrive.fill", color: .secondary)) }
 
         return metrics
     }
