@@ -161,6 +161,43 @@ struct ServiceDetailView: View {
                                     .font(.subheadline)
                             }
                             .buttonStyle(.plain)
+
+                            let hasAlert = vm.hasMetricAlert(serviceID: serviceID, label: metric.label)
+                            Button {
+                                vm.toggleMetricAlert(serviceID: serviceID, metric: metric)
+                            } label: {
+                                Image(systemName: hasAlert ? "bell.fill" : "bell")
+                                    .foregroundStyle(hasAlert ? Color.orange : Color.secondary.opacity(0.4))
+                                    .font(.subheadline)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                let current = vm.metricAlertCondition(serviceID: serviceID, label: metric.label)
+                                Button {
+                                    vm.setMetricAlertCondition(.whenAlert, serviceID: serviceID, label: metric.label)
+                                } label: {
+                                    Label(
+                                        current == .whenAlert ? "Notify when flagged \u{2713}" : "Notify when flagged",
+                                        systemImage: "exclamationmark.triangle"
+                                    )
+                                }
+                                Button {
+                                    vm.setMetricAlertCondition(.whenValueChanges, serviceID: serviceID, label: metric.label)
+                                } label: {
+                                    Label(
+                                        current == .whenValueChanges ? "Notify on value change \u{2713}" : "Notify on value change",
+                                        systemImage: "arrow.triangle.2.circlepath"
+                                    )
+                                }
+                                if current != nil {
+                                    Divider()
+                                    Button(role: .destructive) {
+                                        vm.removeMetricAlert(serviceID: serviceID, label: metric.label)
+                                    } label: {
+                                        Label("Remove alert", systemImage: "bell.slash")
+                                    }
+                                }
+                            }
                         }
                         Image(systemName: metric.icon)
                             .foregroundStyle(metric.color)

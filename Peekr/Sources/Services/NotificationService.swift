@@ -38,4 +38,19 @@ enum NotificationService {
         )
         try? await UNUserNotificationCenter.current().add(request)
     }
+
+    static func postMetricAlert(for service: Service, metric: ServiceMetric) async {
+        let content = UNMutableNotificationContent()
+        content.title = "\(service.name): \(metric.label)"
+        content.body = metric.value.isEmpty ? "Value changed" : metric.value
+        content.sound = .default
+        content.interruptionLevel = .active
+
+        let request = UNNotificationRequest(
+            identifier: "metric-\(service.id.uuidString)-\(abs(metric.label.hashValue))",
+            content: content,
+            trigger: nil
+        )
+        try? await UNUserNotificationCenter.current().add(request)
+    }
 }

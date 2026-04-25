@@ -210,6 +210,13 @@ final class HomeViewModel: ObservableObject {
                 updated.status = fetched.isEmpty ? .degraded : .online
                 live.liveData[updated.id]?.status = updated.status
             }
+            // Check per-metric alert rules
+            if updated.notificationsEnabled {
+                let alertStore = MetricAlertStore.shared
+                for metric in fetched where alertStore.shouldFire(metric: metric, serviceID: updated.id) {
+                    Task { await NotificationService.postMetricAlert(for: updated, metric: metric) }
+                }
+            }
         } catch let error as IntegrationError {
             switch error {
             case .authFailed:
@@ -267,6 +274,7 @@ final class HomeViewModel: ObservableObject {
     func removeService(_ service: Service) {
         live.remove(id: service.id)
         removeMetricOrder(for: service.id)
+        MetricAlertStore.shared.removeAllRules(for: service.id)
         historyStore.remove(serviceID: service.id)
         uptimeStore.remove(serviceID: service.id)
         store.remove(id: service.id)
@@ -413,6 +421,38 @@ final class HomeViewModel: ObservableObject {
         hiddenMetricsStore = hm
         // Sync to LiveDataStore so ServiceRowView picks it up immediately
         live.hiddenMetricLabels[serviceID] = set
+    }
+
+    // MARK: - Metric alert rules
+
+    func hasMetricAlert(serviceID: UUID, label: String) -> Bool {
+        MetricAlertStore.shared.hasRule(serviceID: serviceID, label: label)
+    }
+
+    func metricAlertCondition(serviceID: UUID, label: String) -> MetricAlertStore.Condition? {
+        MetricAlertStore.shared.rule(serviceID: serviceID, label: label)
+    }
+
+    func setMetricAlertCondition(_ condition: MetricAlertStore.Condition, serviceID: UUID, label: String) {
+        MetricAlertStore.shared.setRule(condition, serviceID: serviceID, label: label)
+        objectWillChange.send()
+    }
+
+    func removeMetricAlert(serviceID: UUID, label: String) {
+        MetricAlertStore.shared.removeRule(serviceID: serviceID, label: label)
+        objectWillChange.send()
+    }
+
+    func toggleMetricAlert(serviceID: UUID, metric: ServiceMetric) {
+        let store = MetricAlertStore.shared
+        if store.hasRule(serviceID: serviceID, label: metric.label) {
+            store.removeRule(serviceID: serviceID, label: metric.label)
+        } else {
+            // Default: whenAlert for metrics that can be flagged, whenValueChanges otherwise
+            let condition: MetricAlertStore.Condition = metric.isAlert ? .whenAlert : .whenValueChanges
+            store.setRule(condition, serviceID: serviceID, label: metric.label)
+        }
+        objectWillChange.send()
     }
 
     // MARK: - Export / Import
