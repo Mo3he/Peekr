@@ -57,6 +57,13 @@ struct iPadRootView: View {
             vm.startAutoRefresh()
         }
         .onDisappear { vm.stopAutoRefresh() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            vm.stopAutoRefresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            guard hasAppeared else { return }
+            vm.startAutoRefresh()
+        }
         .onChange(of: refreshInterval) { _, _ in vm.startAutoRefresh() }
     }
 

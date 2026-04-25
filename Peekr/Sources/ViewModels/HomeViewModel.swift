@@ -431,14 +431,28 @@ final class HomeViewModel: ObservableObject {
         autoRefreshTask?.cancel()
         guard refreshInterval > 0 else { return }
         autoRefreshTask = Task {
-            let pollInterval: Double = 10
             while !Task.isCancelled {
                 if !isRefreshing {
                     await performBackgroundRefresh()
                 }
-                try? await Task.sleep(for: .seconds(pollInterval))
+                // Sleep exactly until the next service is due, rather than polling every 10s.
+                // This prevents unnecessary CPU wakeups between refresh cycles.
+                let sleepDuration = nextCheckDue()
+                try? await Task.sleep(for: .seconds(sleepDuration))
             }
         }
+    }
+
+    /// Returns the number of seconds until the earliest next-due service check.
+    /// Minimum 1 second, maximum refreshInterval.
+    private func nextCheckDue() -> Double {
+        let now = Date()
+        let durations = store.services.map { service -> Double in
+            let interval = service.checkInterval ?? refreshInterval
+            guard let last = live.liveData[service.id]?.lastChecked ?? service.lastChecked else { return 1 }
+            return max(interval - now.timeIntervalSince(last), 1)
+        }
+        return durations.min() ?? refreshInterval
     }
 
     /// Silent background refresh. Writes ONLY to `liveData` and `metrics` — never to
