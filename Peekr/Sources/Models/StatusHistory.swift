@@ -10,14 +10,14 @@ struct StatusSnapshot: Identifiable, Codable {
 
 /// Stores the last N snapshots per service in UserDefaults.
 @MainActor
-final class StatusHistoryStore {
+final class StatusHistoryStore: ObservableObject {
     static let shared = StatusHistoryStore()
     private init() { load() }
 
     private let key = "peekr.statusHistory"
     private let maxPerService = 30
 
-    private(set) var history: [UUID: [StatusSnapshot]] = [:]
+    @Published private(set) var history: [UUID: [StatusSnapshot]] = [:]
 
     func record(serviceID: UUID, status: ServiceStatus, latencyMs: Double?) {
         let snap = StatusSnapshot(latencyMs: latencyMs, status: status, timestamp: Date())

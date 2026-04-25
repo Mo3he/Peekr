@@ -4,6 +4,7 @@ struct ServiceDetailView: View {
     let serviceID: UUID
     @ObservedObject var vm: HomeViewModel
     @ObservedObject private var live = LiveDataStore.shared
+    @ObservedObject private var historyStore = StatusHistoryStore.shared
 
     @Environment(\..openURL) private var openURL
     @Environment(\..dismiss) private var dismiss
@@ -17,7 +18,7 @@ struct ServiceDetailView: View {
         return live.effectiveStatus(for: service)
     }
     private var history: [StatusSnapshot] {
-        StatusHistoryStore.shared.snapshots(for: serviceID)
+        historyStore.snapshots(for: serviceID)
     }
 
     var body: some View {
@@ -88,7 +89,7 @@ struct ServiceDetailView: View {
                     }
                 }
                 Spacer()
-                if !service.serviceType.isCloudService, let latency = service.latencyMs {
+                if !service.serviceType.isCloudService, let latency = live.liveData[serviceID]?.latencyMs ?? service.latencyMs {
                     VStack(alignment: .trailing) {
                         Text(String(format: "%.0f ms", latency))
                             .font(.title3.bold().monospacedDigit())
@@ -100,10 +101,10 @@ struct ServiceDetailView: View {
             }
             .padding(.vertical, 4)
 
-            if !service.serviceType.isCloudService, let code = service.httpStatusCode {
+            if !service.serviceType.isCloudService, let code = live.liveData[serviceID]?.httpStatusCode ?? service.httpStatusCode {
                 LabeledContent("HTTP Status", value: "\(code)")
             }
-            if let date = service.lastChecked {
+            if let date = live.liveData[serviceID]?.lastChecked ?? service.lastChecked {
                 LabeledContent("Last checked") {
                     Text(date, style: .relative)
                         .foregroundStyle(.secondary)
