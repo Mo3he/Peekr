@@ -56,12 +56,18 @@ struct PeekrApp: App {
             "autoRefreshInterval": 30.0
         ])
 
+        // Demo mode: seeds realistic fake services for App Store screenshots.
+        // No-op when DemoMode.isEnabled is false.
+        MainActor.assumeIsolated { DemoMode.seedIfNeeded() }
+
         BGTaskScheduler.shared.register(forTaskWithIdentifier: bgTaskID, using: nil) { task in
             guard let refreshTask = task as? BGAppRefreshTask else { return }
             Self.handleBackgroundRefresh(task: refreshTask)
         }
         // Request notification permission on first launch - non-blocking
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        if !DemoMode.isEnabled {
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        }
         UNUserNotificationCenter.current().delegate = notifDelegate
     }
 

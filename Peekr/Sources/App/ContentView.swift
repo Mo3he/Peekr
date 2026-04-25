@@ -2,13 +2,16 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @EnvironmentObject private var vm: HomeViewModel
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var showOnboarding = false
     @State private var pendingSummary: MetricSummarySchedule?
 
     var body: some View {
         Group {
-            if sizeClass == .regular {
+            if let demo = DemoNavigator.current, demo != .home {
+                DemoNavigator.view(for: demo, vm: vm)
+            } else if sizeClass == .regular {
                 iPadRootView()
             } else {
                 iPhoneRootView()

@@ -33,6 +33,14 @@ final class UptimeStore {
         save()
     }
 
+    /// DEMO: insert a record with an explicit timestamp (used by `DemoMode` only).
+    func recordDemo(serviceID: UUID, status: ServiceStatus, timestamp: Date) {
+        let rec = UptimeRecord(timestamp: timestamp, isOnline: status == .online)
+        var list = records[serviceID, default: []]
+        list.append(rec)
+        records[serviceID] = list.sorted { $0.timestamp < $1.timestamp }
+    }
+
     // MARK: - Query
 
     /// Uptime percentage for this service over the last `days` days.

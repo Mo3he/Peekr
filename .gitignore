@@ -40,3 +40,7 @@ Podfile.lock
 *.ipa
 *.dSYM.zip
 *.dSYM
+
+# App Store screenshot raw captures (PNGs are intermediate; final JPEGs are committed).
+# See Screenshots/SNAPSHOT_WORKFLOW.md
+Screenshots/sim*/

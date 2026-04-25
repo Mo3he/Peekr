@@ -32,6 +32,15 @@ final class StatusHistoryStore: ObservableObject {
         history[serviceID, default: []]
     }
 
+    /// DEMO: append a snapshot with an explicit timestamp (used by `DemoMode` only).
+    func recordDemo(serviceID: UUID, status: ServiceStatus, latencyMs: Double?, timestamp: Date) {
+        let snap = StatusSnapshot(latencyMs: latencyMs, status: status, timestamp: timestamp)
+        var snaps = history[serviceID, default: []]
+        snaps.append(snap)
+        if snaps.count > maxPerService { snaps.removeFirst(snaps.count - maxPerService) }
+        history[serviceID] = snaps
+    }
+
     func remove(serviceID: UUID) {
         history.removeValue(forKey: serviceID)
         save()

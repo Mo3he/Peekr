@@ -94,6 +94,12 @@ final class ServiceStore: ObservableObject {
         save()
     }
 
+    /// DEMO: replaces the in-memory list without writing to Keychain or UserDefaults.
+    /// Used only by `DemoMode` for App Store screenshots.
+    func replaceForDemo(_ list: [Service]) {
+        services = list
+    }
+
     // MARK: - Persistence
 
     private func save() {

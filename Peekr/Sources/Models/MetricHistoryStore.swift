@@ -46,6 +46,24 @@ final class MetricHistoryStore {
         history["\(serviceID.uuidString)|\(label.lowercased())"] ?? []
     }
 
+    /// DEMO: synthesize a 10-point reading history at staggered timestamps (used by `DemoMode` only).
+    /// Pass `values` to vary readings across timestamps; otherwise `value` repeats for all 10.
+    func recordDemo(serviceID: UUID, label: String, value: String, isAlert: Bool,
+                    values: [String]? = nil) {
+        let key = "\(serviceID.uuidString)|\(label.lowercased())"
+        let now = Date()
+        let offsets: [TimeInterval] = [-50, -118, -138, -179, -260, -270, -303, -318, -379, -466]
+        history[key] = offsets.enumerated().map { (idx, dt) in
+            let v: String
+            if let values, !values.isEmpty {
+                v = values[idx % values.count]
+            } else {
+                v = value
+            }
+            return MetricSnapshot(value: v, isAlert: isAlert, timestamp: now.addingTimeInterval(dt))
+        }
+    }
+
     // MARK: - Cleanup
 
     func remove(serviceID: UUID) {

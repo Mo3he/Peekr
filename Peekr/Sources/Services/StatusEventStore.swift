@@ -39,6 +39,12 @@ final class StatusEventStore: ObservableObject {
         save()
     }
 
+    /// DEMO: append a fully-formed event (used by `DemoMode` only).
+    func appendDemo(_ event: StatusEvent) {
+        events.append(event)
+        events.sort { $0.timestamp > $1.timestamp }
+    }
+
     private func save() {
         guard let data = try? JSONEncoder().encode(events) else { return }
         UserDefaults.standard.set(data, forKey: storageKey)
