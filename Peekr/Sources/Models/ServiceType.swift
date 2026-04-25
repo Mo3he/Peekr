@@ -103,7 +103,9 @@ enum ServiceType: String, Codable, CaseIterable {
         case .immich:      return .token
         case .paperless:   return .token
         case .frigate:     return .none
-        case .ntfy:        return .none        case .ugreenNas:     return .token        default:           return .none
+        case .ntfy:        return .none
+        case .ugreenNas:     return .credentials
+        default:           return .none
         }
     }
 
@@ -156,7 +158,6 @@ enum ServiceType: String, Codable, CaseIterable {
         case .vaultwarden:   return "Admin panel token set during server setup."
         case .immich:        return "User Settings → API Keys → New API Key"
         case .paperless:     return "Settings → API → Generate Token"
-        case .ugreenNas:     return "1. Open your NAS web UI in a browser and log in.\n2. Press F12 to open DevTools, then click the Console tab.\n3. Look for a line that says: [setToken] token: followed by a long code.\n4. Copy that code and paste it here.\n\nTip: if you don't see it, log out and log back in while the Console is open."
         default:             return nil
         }
     }
