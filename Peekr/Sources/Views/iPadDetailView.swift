@@ -42,14 +42,6 @@ struct iPadDetailView: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         HStack(spacing: 16) {
-                            if !visibleMetrics.isEmpty {
-                                Button {
-                                    withAnimation { reorderingMetrics.toggle() }
-                                } label: {
-                                    Text(reorderingMetrics ? "Done" : "Reorder")
-                                        .font(.subheadline)
-                                }
-                            }
                             if let url = service.url {
                                 Button { openURL(url) } label: {
                                     Label("Open", systemImage: "safari")
@@ -146,7 +138,7 @@ struct iPadDetailView: View {
     @ViewBuilder
     private var metricsSection: some View {
         if !metrics.isEmpty || metricsError != nil {
-            Section("Live Metrics") {
+            Section {
                 ForEach(visibleMetrics) { metric in
                     HStack(spacing: 10) {
                         if !reorderingMetrics {
@@ -173,6 +165,18 @@ struct iPadDetailView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
                         Text(error).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                HStack {
+                    Text("Live Metrics")
+                    Spacer()
+                    if !visibleMetrics.isEmpty {
+                        Button(reorderingMetrics ? "Done" : "Reorder") {
+                            withAnimation { reorderingMetrics.toggle() }
+                        }
+                        .font(.caption)
+                        .textCase(nil)
                     }
                 }
             }

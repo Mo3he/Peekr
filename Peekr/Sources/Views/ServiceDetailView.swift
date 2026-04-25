@@ -35,7 +35,7 @@ struct ServiceDetailView: View {
                 .refreshable { await vm.checkAndFetch(service) }
                 .listStyle(.insetGrouped)
                 .navigationTitle(service.name)
-                .navigationBarTitleDisplayMode(.inline)
+                .navigationBarTitleDisplayMode(.large)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         if let url = service.url {
@@ -45,14 +45,6 @@ struct ServiceDetailView: View {
                         }
                     }
                     ToolbarItemGroup(placement: .topBarTrailing) {
-                        if !visibleMetrics.isEmpty {
-                            Button {
-                                withAnimation { reorderingMetrics.toggle() }
-                            } label: {
-                                Text(reorderingMetrics ? "Done" : "Reorder")
-                                    .font(.subheadline)
-                            }
-                        }
                         Button {
                             Task { await vm.checkAndFetch(service) }
                         } label: {
@@ -160,7 +152,7 @@ struct ServiceDetailView: View {
     @ViewBuilder
     private var metricsSection: some View {
         if !metrics.isEmpty || metricsError != nil {
-            Section("Live Metrics") {
+            Section {
                 ForEach(visibleMetrics) { metric in
                     HStack(spacing: 10) {
                         if !reorderingMetrics {
@@ -193,6 +185,18 @@ struct ServiceDetailView: View {
                         Text(error)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                HStack {
+                    Text("Live Metrics")
+                    Spacer()
+                    if !visibleMetrics.isEmpty {
+                        Button(reorderingMetrics ? "Done" : "Reorder") {
+                            withAnimation { reorderingMetrics.toggle() }
+                        }
+                        .font(.caption)
+                        .textCase(nil)
                     }
                 }
             }
