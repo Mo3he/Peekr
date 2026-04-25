@@ -159,6 +159,7 @@ struct ServicePickerView: View {
         case .paperless:      return .green
         case .frigate:        return .blue
         case .ntfy:           return .purple
+        case .ugreenNas:      return Color(red: 0.0, green: 0.6, blue: 0.8)
         case .claude:         return Color(red: 0.8, green: 0.5, blue: 0.3)
         case .copilot:        return .primary
         case .generic:        return .secondary
@@ -193,6 +194,7 @@ struct ServicePickerView: View {
         case .paperless:      return "Document management"
         case .frigate:        return "NVR with object detection"
         case .ntfy:           return "Push notification service"
+        case .ugreenNas:      return "Network attached storage (UGOS Pro)"
         case .claude:         return "Anthropic API - model access and quotas"
         case .copilot:        return "GitHub Copilot - subscription and usage"
         case .generic:        return "Any HTTP, HTTPS, or TCP endpoint"

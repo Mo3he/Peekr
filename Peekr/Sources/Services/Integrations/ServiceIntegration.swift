@@ -35,6 +35,7 @@ enum IntegrationProvider {
         case .ntfy:          return NtfyIntegration()
         case .claude:        return ClaudeIntegration()
         case .copilot:       return CopilotIntegration()
+        case .ugreenNas:     return UGreenNASIntegration()
         default:             return GenericIntegration()
         }
     }

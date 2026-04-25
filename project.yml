@@ -23,13 +23,15 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mblieden.peekr
+        # Catalyst gets a distinct bundle ID so it can coexist with the iOS app on
+        # the same Mac. Replaces the now-deprecated DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER.
+        "PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]": maccatalyst.com.mblieden.peekr
         INFOPLIST_FILE: Peekr/Info.plist
         GENERATE_INFOPLIST_FILE: "NO"
         ENABLE_DEBUG_DYLIB: "NO"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: "YES"
-        DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER: "YES"
     # PAID_ACCOUNT: uncomment the entitlements block below when Apple Developer Program is active
     # entitlements:
     #   path: Peekr/Peekr.entitlements

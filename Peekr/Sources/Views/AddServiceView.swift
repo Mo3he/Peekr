@@ -16,6 +16,8 @@ struct AddServiceView: View {
     @State private var apiKey: String
     @State private var username: String
     @State private var password: String
+    @State private var customIcon: String
+    @State private var showIconPicker = false
     @State private var showValidationError = false
     @State private var isSanitizing = false
     @State private var checkInterval: Double
@@ -26,12 +28,20 @@ struct AddServiceView: View {
 
     private static let intervalOptions: [(label: String, value: Double)] = [
         ("Default (global)", 0),
-        ("30 seconds", 30),
-        ("1 minute", 60),
-        ("2 minutes", 120),
-        ("5 minutes", 300),
-        ("10 minutes", 600),
-        ("15 minutes", 900),
+        ("5 seconds",   5),
+        ("10 seconds",  10),
+        ("15 seconds",  15),
+        ("30 seconds",  30),
+        ("45 seconds",  45),
+        ("1 minute",    60),
+        ("90 seconds",  90),
+        ("2 minutes",   120),
+        ("3 minutes",   180),
+        ("5 minutes",   300),
+        ("10 minutes",  600),
+        ("15 minutes",  900),
+        ("30 minutes",  1800),
+        ("1 hour",      3600),
     ]
 
     init(existing: Service? = nil, serviceType: ServiceType? = nil, onSave: @escaping (Service) -> Void) {
@@ -53,6 +63,7 @@ struct AddServiceView: View {
         _allowSelfSignedCert  = State(initialValue: existing?.allowSelfSignedCert ?? false)
         _customPingPath       = State(initialValue: existing?.customPingPath ?? "")
         _latencyDegradedMs    = State(initialValue: existing?.latencyDegradedMs.map { String(Int($0)) } ?? "")
+        _customIcon           = State(initialValue: existing?.customIcon ?? (existing == nil ? serviceType?.icon : nil) ?? "server.rack")
     }
 
     private var isEditing: Bool { existing != nil }
@@ -98,11 +109,34 @@ struct AddServiceView: View {
 
     // MARK: - Cloud service form (GitHub, Claude, Copilot...)
 
+    private var iconPickerRow: some View {
+        Button {
+            showIconPicker = true
+        } label: {
+            HStack {
+                Text("Icon")
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: customIcon)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .sheet(isPresented: $showIconPicker) {
+            IconPickerView(selectedIcon: $customIcon)
+        }
+    }
+
     @ViewBuilder
     private var cloudServiceForm: some View {
         Section {
             TextField("Name", text: $name)
                 .textInputAutocapitalization(.words)
+            iconPickerRow
         } header: {
             Text("Service")
         } footer: {
@@ -132,6 +166,7 @@ struct AddServiceView: View {
                     Text(opt.label).tag(opt.value)
                 }
             }
+            .pickerStyle(.menu)
             Toggle("Notifications", isOn: $notificationsEnabled)
         } header: {
             Text("Options")
@@ -145,6 +180,7 @@ struct AddServiceView: View {
         Section("Service Details") {
             TextField("Name (e.g. Glances)", text: $name)
                 .textInputAutocapitalization(.words)
+            iconPickerRow
 
             Picker("Scheme", selection: $scheme) {
                 ForEach(ServiceScheme.allCases, id: \.self) { s in
@@ -178,6 +214,7 @@ struct AddServiceView: View {
                     Text(opt.label).tag(opt.value)
                 }
             }
+            .pickerStyle(.menu)
 
             Toggle("Notifications", isOn: $notificationsEnabled)
         }
@@ -191,16 +228,24 @@ struct AddServiceView: View {
             }
 
         Section {
-            TextField("Custom ping path (e.g. /health)", text: $customPingPath)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.URL)
+            // TCP-only services don't have an HTTP path concept; only show the field
+            // when the scheme is HTTP/HTTPS.
+            if scheme.isHTTP {
+                TextField("/health", text: $customPingPath)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+            }
             TextField("Degraded above (ms, optional)", text: $latencyDegradedMs)
                 .keyboardType(.numberPad)
         } header: {
             Text("Advanced")
         } footer: {
-            Text("A custom ping path overrides the integration default. The latency threshold marks the service as degraded when ping responses exceed this value.")
+            if scheme.isHTTP {
+                Text("Custom ping path (e.g. \"/health\") overrides the integration default. Latency threshold marks the service as degraded when responses exceed this value.")
+            } else {
+                Text("Latency threshold marks the service as degraded when responses exceed this value.")
+            }
         }
 
         if scheme == .https {
@@ -333,6 +378,7 @@ struct AddServiceView: View {
             service.lastChecked          = existing?.lastChecked
             service.checkInterval        = checkInterval > 0 ? checkInterval : nil
             service.notificationsEnabled = notificationsEnabled
+            service.customIcon           = customIcon != effectiveType.icon ? customIcon : nil
             onSave(service)
             dismiss()
             return
@@ -361,8 +407,9 @@ struct AddServiceView: View {
         service.notificationsEnabled = notificationsEnabled
         service.allowSelfSignedCert  = scheme == .https ? allowSelfSignedCert : false
         let trimmedPath = customPingPath.trimmingCharacters(in: .whitespaces)
-        service.customPingPath = trimmedPath.isEmpty ? nil : trimmedPath
+        service.customPingPath = scheme.isHTTP && !trimmedPath.isEmpty ? trimmedPath : nil
         service.latencyDegradedMs = Double(latencyDegradedMs).flatMap { $0 > 0 ? $0 : nil }
+        service.customIcon = customIcon != effectiveType.icon ? customIcon : nil
         onSave(service)
         dismiss()
     }

@@ -115,17 +115,21 @@ final class NetworkMonitor: ObservableObject {
                 port: NWEndpoint.Port(rawValue: port)!,
                 using: .tcp
             )
-            var resumed = false
+            // Wrap the resumed flag in a reference type so the state-update closure and
+            // the asyncAfter timeout share the same value without Swift 6 complaining
+            // about captured-var-in-concurrent-code (both run on `queue`, so this is
+            // safe in practice; the box just makes that explicit to the compiler).
+            let state = ProbeState()
 
-            connection.stateUpdateHandler = { state in
-                guard !resumed else { return }
-                switch state {
+            connection.stateUpdateHandler = { connState in
+                guard !state.resumed else { return }
+                switch connState {
                 case .ready:
-                    resumed = true
+                    state.resumed = true
                     connection.cancel()
                     continuation.resume(returning: true)
                 case .failed, .cancelled:
-                    resumed = true
+                    state.resumed = true
                     continuation.resume(returning: false)
                 default:
                     break
@@ -135,11 +139,18 @@ final class NetworkMonitor: ObservableObject {
             connection.start(queue: queue)
 
             queue.asyncAfter(deadline: .now() + 2) {
-                guard !resumed else { return }
-                resumed = true
+                guard !state.resumed else { return }
+                state.resumed = true
                 connection.cancel()
                 continuation.resume(returning: false)
             }
         }
     }
+}
+
+/// Reference-type holder for the probe's `resumed` flag. Both the state-update closure
+/// and the timeout closure run serially on `NetworkMonitor.probeQueue`, so no atomic is
+/// needed.
+private final class ProbeState: @unchecked Sendable {
+    var resumed = false
 }

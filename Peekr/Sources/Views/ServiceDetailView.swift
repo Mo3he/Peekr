@@ -39,17 +39,21 @@ struct ServiceDetailView: View {
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
-                        if let url = service.url {
-                            Button { openURL(url) } label: {
-                                Label("Open", systemImage: "safari")
+                        Button("Edit") { editingService = service }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { dismiss() }
+                    }
+                    if let url = service.url {
+                        ToolbarItem(placement: .principal) {
+                            Link(destination: url) {
+                                Text("Open in Browser")
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 5)
+                                    .background(.tint.opacity(0.12), in: Capsule())
                             }
                         }
-                    }
-                    ToolbarItemGroup(placement: .topBarTrailing) {
-                        Button("Edit") {
-                            editingService = service
-                        }
-                        Button("Close") { dismiss() }
                     }
                 }
                 .sheet(item: $editingService) { svc in

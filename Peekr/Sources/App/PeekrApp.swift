@@ -48,6 +48,14 @@ struct PeekrApp: App {
     @StateObject private var vm = HomeViewModel()
 
     init() {
+        // Register UserDefaults defaults so reads from the BG scheduler agree with
+        // SwiftUI's @AppStorage defaults in SettingsView. Without this, a fresh install
+        // would read 0 here and silently disable background refresh.
+        UserDefaults.standard.register(defaults: [
+            "bgRefreshInterval": 900.0,
+            "autoRefreshInterval": 30.0
+        ])
+
         BGTaskScheduler.shared.register(forTaskWithIdentifier: bgTaskID, using: nil) { task in
             guard let refreshTask = task as? BGAppRefreshTask else { return }
             Self.handleBackgroundRefresh(task: refreshTask)
@@ -95,15 +103,22 @@ struct PeekrApp: App {
     #endif
 
     private func scheduleBackgroundRefresh() {
+        Self.scheduleBackgroundRefresh(taskID: bgTaskID)
+    }
+
+    private static func scheduleBackgroundRefresh(taskID: String) {
         let interval = UserDefaults.standard.double(forKey: "bgRefreshInterval")
-        let seconds = interval > 0 ? interval : 900  // default 15 min; 0 = disabled
-        guard interval != 0 else { return }
-        let request = BGAppRefreshTaskRequest(identifier: bgTaskID)
-        request.earliestBeginDate = Date(timeIntervalSinceNow: seconds)
+        guard interval > 0 else { return }  // 0 = user disabled
+        let request = BGAppRefreshTaskRequest(identifier: taskID)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: interval)
         try? BGTaskScheduler.shared.submit(request)
     }
 
     private static func handleBackgroundRefresh(task: BGAppRefreshTask) {
+        // Reschedule the next task FIRST so we don't miss the next slot if the work
+        // takes the whole budget or hits the expiration handler.
+        scheduleBackgroundRefresh(taskID: task.identifier)
+
         // Single Task owns the work. Set expirationHandler before any await to ensure
         // the system can cancel cleanly even if the runtime expires the task immediately.
         let work = Task<Bool, Never> {

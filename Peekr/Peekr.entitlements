@@ -8,5 +8,9 @@
 	<array>
 		<string>group.com.mblieden.peekr</string>
 	</array>
+	<!-- Required for `UNNotificationInterruptionLevel.timeSensitive` used by offline alerts.
+	     Without this, the system silently downgrades the alert to `.active`. -->
+	<key>com.apple.developer.usernotifications.time-sensitive</key>
+	<true/>
 </dict>
 </plist>

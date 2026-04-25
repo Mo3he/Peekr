@@ -25,6 +25,8 @@ struct Service: Identifiable, Codable, Hashable {
     var customPingPath: String?
     /// Latency above this (ms) should report as `.degraded` even on 2xx. nil = no threshold.
     var latencyDegradedMs: Double?
+    /// User-chosen SF Symbol name override. nil = use serviceType default.
+    var customIcon: String?
 
     // Explicit CodingKeys so that adding new optional fields never breaks
     // decoding of older stored data (missing keys decode as nil).
@@ -34,6 +36,7 @@ struct Service: Identifiable, Codable, Hashable {
         case status, lastChecked, latencyMs, httpStatusCode
         case checkInterval, notificationsEnabled
         case allowSelfSignedCert, customPingPath, latencyDegradedMs
+        case customIcon
     }
 
     init(id: UUID = UUID(), name: String, host: String, port: Int, scheme: ServiceScheme = .http,
@@ -54,6 +57,7 @@ struct Service: Identifiable, Codable, Hashable {
         self.allowSelfSignedCert = false
         self.customPingPath = nil
         self.latencyDegradedMs = nil
+        self.customIcon = nil
     }
 
     /// Custom decoder so that new fields added after initial release default gracefully.
@@ -78,6 +82,7 @@ struct Service: Identifiable, Codable, Hashable {
         allowSelfSignedCert  = try c.decodeIfPresent(Bool.self,     forKey: .allowSelfSignedCert)  ?? false
         customPingPath       = try c.decodeIfPresent(String.self,   forKey: .customPingPath)
         latencyDegradedMs    = try c.decodeIfPresent(Double.self,   forKey: .latencyDegradedMs)
+        customIcon           = try c.decodeIfPresent(String.self,   forKey: .customIcon)
     }
 
     var url: URL? {
@@ -103,7 +108,7 @@ struct Service: Identifiable, Codable, Hashable {
         "\(scheme.rawValue)://\(host):\(port)"
     }
 
-    var icon: String { serviceType.icon }
+    var icon: String { customIcon ?? serviceType.icon }
 
     /// Whether this service is only reachable on a local network (private IP or .local hostname).
     var isLocalNetwork: Bool {

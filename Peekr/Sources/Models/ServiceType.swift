@@ -28,6 +28,7 @@ enum ServiceType: String, Codable, CaseIterable {
     case paperless       = "paperless"
     case frigate         = "frigate"
     case ntfy            = "ntfy"
+    case ugreenNas       = "ugreen_nas"
     case claude          = "claude"
     case copilot         = "copilot"
     case generic         = "generic"
@@ -59,8 +60,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .immich:         return "Immich"
         case .paperless:      return "Paperless-ngx"
         case .frigate:        return "Frigate"
-        case .ntfy:           return "ntfy"
-        case .claude:         return "Claude"
+        case .ntfy:           return "ntfy"        case .ugreenNas:      return "UGREEN NAS"        case .claude:         return "Claude"
         case .copilot:        return "GitHub Copilot"
         case .generic:        return "Generic"
         }
@@ -103,8 +103,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .immich:      return .token
         case .paperless:   return .token
         case .frigate:     return .none
-        case .ntfy:        return .none
-        default:           return .none
+        case .ntfy:        return .none        case .ugreenNas:     return .token        default:           return .none
         }
     }
 
@@ -124,6 +123,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .vaultwarden:   return "Admin Token"
         case .immich:        return "API Key"
         case .paperless:     return "API Token"
+        case .ugreenNas:     return "Session Token"
         default:             return "API Key"
         }
     }
@@ -156,6 +156,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .vaultwarden:   return "Admin panel token set during server setup."
         case .immich:        return "User Settings → API Keys → New API Key"
         case .paperless:     return "Settings → API → Generate Token"
+        case .ugreenNas:     return "Log into your UGREEN NAS web UI, open browser DevTools (F12), go to the Console tab, and paste: JSON.parse(localStorage.getItem('proConfig')).accessInfo.api_token"
         default:             return nil
         }
     }
@@ -222,6 +223,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .paperless:     return "doc.text.fill"
         case .frigate:       return "video.fill"
         case .ntfy:          return "bell.fill"
+        case .ugreenNas:      return "externaldrive.fill"
         case .claude:        return "sparkle"
         case .copilot:       return "chevron.left.forwardslash.chevron.right"
         case .generic:       return "server.rack"
@@ -256,6 +258,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .paperless:     return 8000
         case .frigate:       return 5000
         case .ntfy:          return 80
+        case .ugreenNas:      return 9443
         case .claude:        return 443
         case .copilot:       return 443
         case .generic:       return 80
@@ -266,6 +269,7 @@ enum ServiceType: String, Codable, CaseIterable {
         switch self {
         case .github, .nextcloud: return .https
         case .proxmox, .unifi:    return .https
+        case .ugreenNas:          return .https
         default:                  return .http
         }
     }
@@ -301,6 +305,7 @@ enum ServiceType: String, Codable, CaseIterable {
         if n.contains("ntfy")           { return .ntfy }
         if n.contains("claude")         { return .claude }
         if n.contains("copilot")        { return .copilot }
+        if n.contains("ugreen") || n.contains("ugos") || n.contains("ugnas") { return .ugreenNas }
         return .generic
     }
 }

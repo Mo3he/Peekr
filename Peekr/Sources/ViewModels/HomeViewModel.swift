@@ -19,11 +19,13 @@ final class HomeViewModel: ObservableObject {
     @Published var lastRefreshed: Date?
     @Published var searchText = ""
     @Published var statusFilter: ServiceStatus? = nil
-    @Published private(set) var events: [StatusEvent] = []
 
     /// Live per-service state lives here - in a SEPARATE ObservableObject so that
     /// HomeView (which only observes HomeViewModel) is never re-rendered by refresh.
     let live = LiveDataStore.shared
+    /// Status event log lives in a singleton so background refresh can append to it
+    /// even when no HomeViewModel is on-screen.
+    let eventStore = StatusEventStore.shared
 
     @AppStorage("autoRefreshInterval") private var refreshInterval: Double = 30
 
@@ -33,9 +35,6 @@ final class HomeViewModel: ObservableObject {
     private let uptimeStore = UptimeStore.shared
     private var cancellables = Set<AnyCancellable>()
     private var autoRefreshTask: Task<Void, Never>?
-
-    private let maxEvents = 200
-    private let eventsKey = "peekr.statusEvents"
 
     private let metricOrderKey = "peekr.metricOrder"
     private var metricOrderCache: [String: [String]] = [:]
@@ -72,8 +71,16 @@ final class HomeViewModel: ObservableObject {
                 live.hiddenMetricLabels[id] = Set(labels)
             }
         }
-        loadEvents()
+        // Re-publish StatusEventStore changes through HomeViewModel so existing views
+        // that bind to `vm.events` keep working without changes.
+        eventStore.$events
+            .assign(to: \.events, on: self)
+            .store(in: &cancellables)
     }
+
+    /// Mirrors `StatusEventStore.events` so existing views (`EventLogView(vm:)`) keep
+    /// working without rewrites.
+    @Published private(set) var events: [StatusEvent] = []
 
     // MARK: - Filtered list
 
@@ -312,17 +319,12 @@ final class HomeViewModel: ObservableObject {
     private func recordTransition(previousStatus old: ServiceStatus, service: Service) {
         let new = live.liveData[service.id]?.status ?? service.status
         guard old != new, old != .unknown, old != .checking else { return }
-        let event = StatusEvent(
-            serviceID: service.id,
-            serviceName: service.name,
-            oldStatus: old,
-            newStatus: new
-        )
-        events.insert(event, at: 0)
-        if events.count > maxEvents { events = Array(events.prefix(maxEvents)) }
-        saveEvents()
 
-        // Haptic on meaningful transitions
+        // Persist to the shared event store (also keeps `vm.events` in sync via the
+        // assign in init).
+        eventStore.recordTransition(previousStatus: old, newStatus: new, service: service)
+
+        // Haptic on meaningful transitions (foreground only; BG path doesn't get here)
         #if !targetEnvironment(macCatalyst)
         let gen = UINotificationFeedbackGenerator()
         if new == .offline {
@@ -343,20 +345,7 @@ final class HomeViewModel: ObservableObject {
     }
 
     func clearEvents() {
-        events.removeAll()
-        saveEvents()
-    }
-
-    private func saveEvents() {
-        guard let data = try? JSONEncoder().encode(events) else { return }
-        UserDefaults.standard.set(data, forKey: eventsKey)
-    }
-
-    private func loadEvents() {
-        guard let data = UserDefaults.standard.data(forKey: eventsKey),
-              let decoded = try? JSONDecoder().decode([StatusEvent].self, from: data)
-        else { return }
-        events = decoded
+        eventStore.clear()
     }
 
     // MARK: - Metric ordering

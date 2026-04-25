@@ -1,9 +1,11 @@
 import Foundation
 import Security
+import os.log
 
 enum KeychainHelper {
     // Stable service identifier - never change this or existing items become unreachable.
     private static let service = "com.mblieden.peekr"
+    private static let log = Logger(subsystem: "com.mblieden.peekr", category: "Keychain")
 
     static func save(_ value: String, account: String) {
         let data = Data(value.utf8)
@@ -21,7 +23,12 @@ enum KeychainHelper {
             var add = search
             add[kSecValueData as String]      = data
             add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            SecItemAdd(add as CFDictionary, nil)
+            let addStatus = SecItemAdd(add as CFDictionary, nil)
+            if addStatus != errSecSuccess {
+                log.error("SecItemAdd failed for account=\(account, privacy: .public) status=\(addStatus)")
+            }
+        } else if status != errSecSuccess {
+            log.error("SecItemUpdate failed for account=\(account, privacy: .public) status=\(status)")
         }
     }
 
@@ -35,8 +42,14 @@ enum KeychainHelper {
         ]
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        if status == errSecSuccess, let data = result as? Data {
+            return String(data: data, encoding: .utf8)
+        }
+        // errSecItemNotFound is normal (no credential set yet); other failures are not.
+        if status != errSecSuccess && status != errSecItemNotFound {
+            log.error("SecItemCopyMatching failed for account=\(account, privacy: .public) status=\(status)")
+        }
+        return nil
     }
 
     static func delete(account: String) {
@@ -45,6 +58,9 @@ enum KeychainHelper {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account
         ]
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            log.error("SecItemDelete failed for account=\(account, privacy: .public) status=\(status)")
+        }
     }
 }

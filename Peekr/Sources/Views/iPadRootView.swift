@@ -50,6 +50,12 @@ struct iPadRootView: View {
             Text("This service and its history will be removed.")
         }
         .onAppear {
+            #if targetEnvironment(macCatalyst)
+            // Clear the macOS window title so the app name doesn't appear in the title bar.
+            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                scene.title = " "
+            }
+            #endif
             if !hasAppeared {
                 hasAppeared = true
                 vm.refreshAll()
@@ -81,7 +87,7 @@ struct iPadRootView: View {
         }
         .listStyle(.sidebar)
             .searchable(text: $vm.searchText, prompt: "Search services")
-        .navigationTitle("Peekr")
+        .navigationTitle("")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 HStack(spacing: 12) {

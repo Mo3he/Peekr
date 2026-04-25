@@ -12,19 +12,31 @@ struct SettingsView: View {
     @State private var showNotificationSchedules = false
 
     private let intervalOptions: [(label: String, seconds: Double)] = [
-        ("10 seconds", 10),
-        ("30 seconds", 30),
-        ("1 minute",   60),
-        ("2 minutes",  120),
-        ("5 minutes",  300),
+        ("5 seconds",   5),
+        ("10 seconds",  10),
+        ("15 seconds",  15),
+        ("30 seconds",  30),
+        ("45 seconds",  45),
+        ("1 minute",    60),
+        ("90 seconds",  90),
+        ("2 minutes",   120),
+        ("3 minutes",   180),
+        ("5 minutes",   300),
+        ("10 minutes",  600),
+        ("15 minutes",  900),
+        ("30 minutes",  1800),
+        ("1 hour",      3600),
         ("Manual only", 0),
     ]
 
     private let bgIntervalOptions: [(label: String, seconds: Double)] = [
+        ("5 minutes",  300),
+        ("10 minutes", 600),
         ("15 minutes", 900),
         ("30 minutes", 1800),
         ("1 hour",     3600),
         ("2 hours",    7200),
+        ("4 hours",    14400),
         ("Disabled",   0),
     ]
 
@@ -47,8 +59,7 @@ struct SettingsView: View {
                             Text(opt.label).tag(opt.seconds)
                         }
                     }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
+                    .pickerStyle(.menu)
                 } header: {
                     Text("Auto-Refresh Interval")
                 } footer: {
@@ -61,8 +72,7 @@ struct SettingsView: View {
                             Text(opt.label).tag(opt.seconds)
                         }
                     }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
+                    .pickerStyle(.menu)
                 } header: {
                     Text("Background Refresh Interval")
                 } footer: {
@@ -113,6 +123,11 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
             .sheet(isPresented: $showNotificationSchedules) {
                 NotificationSchedulesView(vm: vm)
             }

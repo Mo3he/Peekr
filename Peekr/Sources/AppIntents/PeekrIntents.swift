@@ -9,8 +9,7 @@ struct RefreshAllServicesIntent: AppIntent {
     static var openAppWhenRun = false
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let store = ServiceStore.shared
-        let services = await MainActor.run { store.services }
+        let services = await MainActor.run { ServiceStore.shared.services }
         guard !services.isEmpty else {
             return .result(dialog: "No services configured in Peekr.")
         }
@@ -21,7 +20,7 @@ struct RefreshAllServicesIntent: AppIntent {
                 }
             }
         }
-        let latest = await MainActor.run { store.services }
+        let latest = await MainActor.run { ServiceStore.shared.services }
         let online = latest.filter { $0.status == .online }.count
         let offline = latest.filter { $0.status == .offline }.count
         let total = latest.count

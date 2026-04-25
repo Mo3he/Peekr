@@ -28,7 +28,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             serviceList
-                .navigationTitle("Peekr")
+                .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     if !isSearchActive {

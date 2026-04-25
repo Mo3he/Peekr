@@ -16,6 +16,7 @@ enum BackgroundRefreshCoordinator {
         let network      = NetworkMonitor.shared
         let historyStore = StatusHistoryStore.shared
         let uptimeStore  = UptimeStore.shared
+        let eventStore   = StatusEventStore.shared
 
         let services = store.services
         guard !services.isEmpty else { return }
@@ -23,6 +24,7 @@ enum BackgroundRefreshCoordinator {
         var newLiveData = live.liveData
         var newMetrics  = live.metrics
         var newErrors   = live.metricsError
+        var pendingStoreUpdates: [Service] = []
 
         for service in services {
             guard !Task.isCancelled else { break }
@@ -39,7 +41,10 @@ enum BackgroundRefreshCoordinator {
                     newLiveData[service.id] = liveEntry
                     newMetrics[service.id]  = fetched
                     newErrors.removeValue(forKey: service.id)
-                    persist(service: service, liveEntry: liveEntry, store: store)
+                    pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
+                    eventStore.recordTransition(previousStatus: previousStatus,
+                                                newStatus: liveEntry.status,
+                                                service: service)
                 } catch IntegrationError.transient(let retryAfter) {
                     // Transient: keep prior live state + metrics, surface backoff message.
                     newErrors[service.id] = IntegrationError.transient(retryAfter: retryAfter).localizedDescription
@@ -48,7 +53,7 @@ enum BackgroundRefreshCoordinator {
                     newLiveData[service.id] = liveEntry
                     newMetrics[service.id]  = []
                     newErrors[service.id]   = error.localizedDescription
-                    persist(service: service, liveEntry: liveEntry, store: store)
+                    pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
                 }
                 continue
             }
@@ -73,8 +78,12 @@ enum BackgroundRefreshCoordinator {
                 newErrors.removeValue(forKey: service.id)
                 historyStore.record(serviceID: service.id, status: .offline, latencyMs: nil)
                 uptimeStore.record(serviceID: service.id, status: .offline)
-                persist(service: service, liveEntry: liveEntry, store: store)
-                if (previousStatus == .online || previousStatus == .degraded) && service.notificationsEnabled {
+                pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
+                eventStore.recordTransition(previousStatus: previousStatus,
+                                            newStatus: .offline,
+                                            service: service)
+                if (previousStatus == .online || previousStatus == .degraded)
+                   && service.notificationsEnabled {
                     await NotificationService.postOfflineAlert(for: service)
                 }
                 continue
@@ -83,8 +92,10 @@ enum BackgroundRefreshCoordinator {
             newLiveData[service.id] = liveEntry
             historyStore.record(serviceID: service.id, status: liveEntry.status, latencyMs: liveEntry.latencyMs)
             uptimeStore.record(serviceID: service.id, status: liveEntry.status)
-            persist(service: service, liveEntry: liveEntry, store: store)
-
+            pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
+            eventStore.recordTransition(previousStatus: previousStatus,
+                                        newStatus: liveEntry.status,
+                                        service: service)
             if previousStatus == .offline && (liveEntry.status == .online || liveEntry.status == .degraded)
                && service.notificationsEnabled {
                 await NotificationService.postRecoveryAlert(for: service)
@@ -103,15 +114,19 @@ enum BackgroundRefreshCoordinator {
             }
         }
 
+        // One publish for the persisted store, one publish for the live cache.
+        if !pendingStoreUpdates.isEmpty {
+            store.batchUpdate(pendingStoreUpdates)
+        }
         live.applyBatch(liveData: newLiveData, metrics: newMetrics, errors: newErrors)
     }
 
-    private static func persist(service: Service, liveEntry: ServiceLiveData, store: ServiceStore) {
+    private static func merged(service: Service, liveEntry: ServiceLiveData) -> Service {
         var updated = service
         updated.status         = liveEntry.status
         updated.latencyMs      = liveEntry.latencyMs
         updated.httpStatusCode = liveEntry.httpStatusCode
         updated.lastChecked    = liveEntry.lastChecked
-        store.update(updated)
+        return updated
     }
 }

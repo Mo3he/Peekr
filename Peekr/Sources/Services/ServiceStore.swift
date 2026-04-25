@@ -171,6 +171,9 @@ final class ServiceStore: ObservableObject {
             let decoded = try? decoder.decode([Service].self, from: data)
         else {
             services = Self.sampleServices
+            // Keep the trust registry in sync even on the empty path so it never lags
+            // behind `services` on a code path that skips `save()`.
+            InsecureTrustRegistry.shared.reload(from: services)
             return
         }
         // Restore credentials from Keychain, falling back to any value still in UserDefaults JSON

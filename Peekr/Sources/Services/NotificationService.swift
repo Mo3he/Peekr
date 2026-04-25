@@ -7,6 +7,10 @@ enum NotificationService {
         content.title = "\(service.name) is offline"
         content.body = "\(service.displayURL) is not responding."
         content.sound = .default
+        // `.timeSensitive` requires the `com.apple.developer.usernotifications.time-sensitive`
+        // entitlement (declared in Peekr.entitlements). Without an active paid Apple
+        // Developer Program, the entitlements file isn't linked into the build (see
+        // `PAID_ACCOUNT` in project.yml) and the system silently downgrades to `.active`.
         content.interruptionLevel = .timeSensitive
 
         let request = UNNotificationRequest(
