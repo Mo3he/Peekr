@@ -14,7 +14,7 @@ struct NotificationSchedulesView: View {
                     ContentUnavailableView(
                         "No Notification Schedules",
                         systemImage: "bell.slash",
-                        description: Text("Add a schedule to receive periodic summaries of your service metrics.")
+                        description: Text("Add a schedule to receive periodic metric summaries for one or more services.")
                     )
                 } else {
                     ForEach(schedules) { schedule in
@@ -27,7 +27,7 @@ struct NotificationSchedulesView: View {
                 }
 
                 Section {
-                    Text("Summary notifications show live metrics for a service at a scheduled time. They work even when the app is closed.")
+                    Text("Summary notifications show live metrics at a scheduled time. Each summary can cover multiple services and works even when the app is closed.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -67,15 +67,16 @@ struct NotificationSchedulesView: View {
 
     private func scheduleRow(_ schedule: MetricSummarySchedule) -> some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(schedule.serviceName)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(schedule.name)
                     .font(.headline)
                     .foregroundStyle(schedule.isEnabled ? .primary : .secondary)
                 Text(schedule.scheduleType.displayName)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                if !schedule.metricLabels.isEmpty {
-                    Text(schedule.metricLabels.joined(separator: ", "))
+                let names = schedule.serviceNames.joined(separator: ", ")
+                if !names.isEmpty {
+                    Text(names)
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
@@ -106,11 +107,10 @@ struct MetricSummaryEditView: View {
     let onSave: (MetricSummarySchedule) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedServiceID: UUID?
+    @State private var scheduleName: String = ""
+    @State private var selectedServiceIDs: Set<UUID> = []
     @State private var selectedMetricLabels: Set<String> = []
     @State private var scheduleType: ScheduleTypeOption = .daily
-    @State private var dailyHour: Int = 9
-    @State private var dailyMinute: Int = 0
     @State private var intervalHours: Int = 4
     @State private var dailyTime: Date = {
         var c = DateComponents(); c.hour = 9; c.minute = 0
@@ -124,26 +124,65 @@ struct MetricSummaryEditView: View {
         case interval = "Every N hours"
     }
 
-    var selectedService: Service? {
-        guard let id = selectedServiceID else { return nil }
-        return vm.services.first { $0.id == id }
+    var availableMetrics: [ServiceMetric] {
+        // Union of all metrics from currently selected services, deduplicated by label
+        var seen = Set<String>()
+        return selectedServiceIDs.flatMap { id in
+            live.metrics[id] ?? []
+        }.filter { seen.insert($0.label).inserted }
     }
 
-    var availableMetrics: [ServiceMetric] {
-        guard let id = selectedServiceID else { return [] }
-        return live.metrics[id] ?? []
+    var derivedName: String {
+        let names = vm.services
+            .filter { selectedServiceIDs.contains($0.id) }
+            .map(\.name)
+        return names.joined(separator: " + ")
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                // Service picker
-                Section("Service") {
-                    Picker("Service", selection: $selectedServiceID) {
-                        Text("Select a service").tag(UUID?.none)
-                        ForEach(vm.services) { svc in
-                            Text(svc.name).tag(UUID?.some(svc.id))
+                // Name
+                Section("Name") {
+                    TextField(derivedName.isEmpty ? "Summary name" : derivedName, text: $scheduleName)
+                        .autocorrectionDisabled()
+                }
+
+                // Service multi-select
+                Section {
+                    ForEach(vm.services) { svc in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(svc.name).font(.body)
+                                Text(svc.serviceType.displayName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if selectedServiceIDs.contains(svc.id) {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.blue)
+                                    .fontWeight(.semibold)
+                            }
                         }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if selectedServiceIDs.contains(svc.id) {
+                                selectedServiceIDs.remove(svc.id)
+                            } else {
+                                selectedServiceIDs.insert(svc.id)
+                            }
+                            // Clear metric selection when services change
+                            selectedMetricLabels = []
+                        }
+                    }
+                } header: {
+                    Text("Services")
+                } footer: {
+                    if selectedServiceIDs.isEmpty {
+                        Text("Select at least one service.")
+                    } else {
+                        Text("\(selectedServiceIDs.count) service\(selectedServiceIDs.count == 1 ? "" : "s") selected.")
                     }
                 }
 
@@ -164,7 +203,7 @@ struct MetricSummaryEditView: View {
                     }
                 }
 
-                // Metric picker
+                // Metric filter (optional)
                 if !availableMetrics.isEmpty {
                     Section {
                         ForEach(availableMetrics) { metric in
@@ -191,11 +230,13 @@ struct MetricSummaryEditView: View {
                     } header: {
                         Text("Metrics to include")
                     } footer: {
-                        Text(selectedMetricLabels.isEmpty ? "All metrics will be included (up to 5)." : "\(selectedMetricLabels.count) selected.")
+                        Text(selectedMetricLabels.isEmpty
+                             ? "All metrics will be included (up to \(selectedServiceIDs.count > 1 ? "3" : "5") per service)."
+                             : "\(selectedMetricLabels.count) metric\(selectedMetricLabels.count == 1 ? "" : "s") selected.")
                     }
-                } else if selectedServiceID != nil {
+                } else if !selectedServiceIDs.isEmpty {
                     Section {
-                        Label("Refresh the service first to load its metrics.", systemImage: "arrow.clockwise")
+                        Label("Refresh the selected services to load their metrics.", systemImage: "arrow.clockwise")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -208,51 +249,63 @@ struct MetricSummaryEditView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") {
-                        guard let svc = selectedService else { return }
-                        let cal = Calendar.current
-                        let type: MetricSummarySchedule.ScheduleType
-                        if scheduleType == .daily {
-                            type = .daily(
-                                hour: cal.component(.hour, from: dailyTime),
-                                minute: cal.component(.minute, from: dailyTime)
-                            )
-                        } else {
-                            type = .interval(hours: intervalHours)
-                        }
-                        var schedule = existing ?? MetricSummarySchedule(
-                            serviceID: svc.id,
-                            serviceName: svc.name,
-                            metricLabels: [],
-                            scheduleType: type
-                        )
-                        schedule.serviceID = svc.id
-                        schedule.serviceName = svc.name
-                        schedule.metricLabels = Array(selectedMetricLabels)
-                        schedule.scheduleType = type
-                        onSave(schedule)
-                        dismiss()
-                    }
-                    .disabled(selectedServiceID == nil)
-                    .fontWeight(.semibold)
+                    Button("Save") { save() }
+                        .disabled(selectedServiceIDs.isEmpty)
+                        .fontWeight(.semibold)
                 }
             }
             .onAppear { loadExisting() }
         }
     }
 
+    private func save() {
+        let cal = Calendar.current
+        let type: MetricSummarySchedule.ScheduleType
+        if scheduleType == .daily {
+            type = .daily(
+                hour: cal.component(.hour, from: dailyTime),
+                minute: cal.component(.minute, from: dailyTime)
+            )
+        } else {
+            type = .interval(hours: intervalHours)
+        }
+
+        let orderedServices = vm.services.filter { selectedServiceIDs.contains($0.id) }
+        let finalName = scheduleName.trimmingCharacters(in: .whitespaces).isEmpty
+            ? derivedName
+            : scheduleName.trimmingCharacters(in: .whitespaces)
+
+        var schedule = existing ?? MetricSummarySchedule(
+            id: UUID(),
+            name: finalName,
+            serviceIDs: orderedServices.map(\.id),
+            serviceNames: orderedServices.map(\.name),
+            metricLabels: Array(selectedMetricLabels),
+            scheduleType: type
+        )
+        schedule.name = finalName
+        schedule.serviceIDs = orderedServices.map(\.id)
+        schedule.serviceNames = orderedServices.map(\.name)
+        schedule.metricLabels = Array(selectedMetricLabels)
+        schedule.scheduleType = type
+
+        onSave(schedule)
+        dismiss()
+    }
+
     private func loadExisting() {
         guard let e = existing else { return }
-        selectedServiceID = e.serviceID
+        scheduleName = e.name
+        selectedServiceIDs = Set(e.serviceIDs)
         selectedMetricLabels = Set(e.metricLabels)
         switch e.scheduleType {
         case .daily(let h, let m):
             scheduleType = .daily
-            let cal = Calendar.current
-            dailyTime = cal.date(bySettingHour: h, minute: m, second: 0, of: Date()) ?? Date()
+            dailyTime = Calendar.current.date(bySettingHour: h, minute: m, second: 0, of: Date()) ?? Date()
         case .interval(let h):
             scheduleType = .interval
             intervalHours = h
         }
     }
 }
+

@@ -44,8 +44,6 @@ final class SummaryNotificationManager {
         let liveMetrics = LiveDataStore.shared.metrics
 
         for schedule in enabled {
-            guard services.contains(where: { $0.id == schedule.serviceID }) else { continue }
-
             let content = buildContent(for: schedule, services: services, liveMetrics: liveMetrics)
             let trigger = buildTrigger(for: schedule.scheduleType)
 
@@ -64,34 +62,54 @@ final class SummaryNotificationManager {
                               services: [Service],
                               liveMetrics: [UUID: [ServiceMetric]]) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
+        content.title = schedule.name
 
-        guard let service = services.first(where: { $0.id == schedule.serviceID }) else {
-            content.title = schedule.serviceName
+        // Collect matching services
+        let matchedServices = schedule.serviceIDs.compactMap { id in
+            services.first(where: { $0.id == id })
+        }
+
+        if matchedServices.isEmpty {
             content.body = "No data available."
+            content.interruptionLevel = .passive
             return content
         }
 
-        let allMetrics = liveMetrics[service.id] ?? []
-        let metricsToShow: [ServiceMetric]
-        if schedule.metricLabels.isEmpty {
-            metricsToShow = Array(allMetrics.prefix(5))
-        } else {
-            metricsToShow = allMetrics.filter { schedule.metricLabels.contains($0.label) }
+        var bodyLines: [String] = []
+        var totalAlerts = 0
+
+        for service in matchedServices {
+            let allMetrics = liveMetrics[service.id] ?? []
+            totalAlerts += allMetrics.filter(\.isAlert).count
+
+            let metricsToShow: [ServiceMetric]
+            if schedule.metricLabels.isEmpty {
+                metricsToShow = Array(allMetrics.prefix(matchedServices.count > 1 ? 3 : 5))
+            } else {
+                metricsToShow = allMetrics.filter { schedule.metricLabels.contains($0.label) }
+            }
+
+            if metricsToShow.isEmpty {
+                if matchedServices.count > 1 {
+                    bodyLines.append("\(service.name): no data")
+                } else {
+                    bodyLines.append("Tap to check current status.")
+                }
+            } else {
+                let metricStr = metricsToShow.map { "\($0.label): \($0.value)" }.joined(separator: ", ")
+                if matchedServices.count > 1 {
+                    bodyLines.append("\(service.name): \(metricStr)")
+                } else {
+                    bodyLines.append(metricStr)
+                }
+            }
         }
 
-        content.title = service.name
+        content.body = bodyLines.joined(separator: "\n")
         content.sound = .default
 
-        if metricsToShow.isEmpty {
-            content.body = "Tap to check current status."
-        } else {
-            content.body = metricsToShow.map { "\($0.label): \($0.value)" }.joined(separator: " | ")
-        }
-
-        // Badge with alert count
-        let alertCount = allMetrics.filter(\.isAlert).count
-        if alertCount > 0 {
-            content.badge = alertCount as NSNumber
+        if totalAlerts > 0 {
+            content.badge = totalAlerts as NSNumber
             content.interruptionLevel = .timeSensitive
         } else {
             content.interruptionLevel = .passive

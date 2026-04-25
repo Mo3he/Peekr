@@ -24,6 +24,9 @@ struct PeekrApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                     Task { @MainActor in await SummaryNotificationManager.shared.rescheduleAll() }
                 }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                    UNUserNotificationCenter.current().setBadgeCount(0)
+                }
         }
 
         #if targetEnvironment(macCatalyst)
