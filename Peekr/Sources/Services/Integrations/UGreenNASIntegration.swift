@@ -45,9 +45,9 @@ struct UGreenNASIntegration: ServiceIntegration {
             }
             return result
         } catch UGreenAuthError.totpSecretMissing {
-            return [ServiceMetric(label: "TOTP Secret needed", value: "Swipe \u{2192} Edit to add", icon: "lock.fill", color: .orange, isAlert: true)]
+            return [ServiceMetric(label: "One-Time Code needed", value: "Swipe \u{2192} Edit to add current OTP", icon: "lock.fill", color: .orange, isAlert: true)]
         } catch UGreenAuthError.totpFailed {
-            return [ServiceMetric(label: "2FA failed", value: "Check TOTP secret in Edit", icon: "lock.slash.fill", color: .red, isAlert: true)]
+            return [ServiceMetric(label: "2FA failed", value: "OTP may have expired - enter a fresh code in Edit", icon: "lock.slash.fill", color: .red, isAlert: true)]
         } catch {
             return [ServiceMetric(label: "Auth failed", value: "Check credentials in Edit", icon: "exclamationmark.lock.fill", color: .red, isAlert: true)]
         }
@@ -184,16 +184,15 @@ struct UGreenNASIntegration: ServiceIntegration {
             throw UGreenAuthError.loginFailed
         }
 
-        // Step 3: TOTP 2FA - request trust so future logins skip OTP
-        let totpSecret = service.apiKey ?? ""
-        guard !totpSecret.isEmpty else { throw UGreenAuthError.totpSecretMissing }
-        let totpCode = generateTOTP(secret: totpSecret)
+        // Step 3: 2FA - use the one-time code the user entered
+        let otpCode = service.apiKey ?? ""
+        guard !otpCode.isEmpty else { throw UGreenAuthError.totpSecretMissing }
 
         var codeReq = URLRequest(url: URL(string: "\(base)/ugreen/v1/verify/code/login")!)
         codeReq.httpMethod = "POST"
         codeReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
         codeReq.httpBody = try JSONSerialization.data(withJSONObject: [
-            "code": totpCode, "type": 1, "token_id": tokenId,
+            "code": otpCode, "type": 1, "token_id": tokenId,
             "trust_info": ["client_type": "web", "system": "iOS", "dev_name": "Peekr"],
             "trust": true
         ])

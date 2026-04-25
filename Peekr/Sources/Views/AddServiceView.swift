@@ -309,9 +309,10 @@ struct AddServiceView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 if effectiveType == .ugreenNas {
-                    SecureField("TOTP Secret (optional, for 2FA)", text: $apiKey)
+                    SecureField("One-Time Code (if 2FA is enabled)", text: $apiKey)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .keyboardType(.numberPad)
                 }
             } header: {
                 Text("Authentication")

@@ -125,7 +125,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .vaultwarden:   return "Admin Token"
         case .immich:        return "API Key"
         case .paperless:     return "API Token"
-        case .ugreenNas:     return "TOTP Secret"
+        case .ugreenNas:     return "One-Time Code"
         default:             return "API Key"
         }
     }
@@ -191,7 +191,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .nginxProxyMgr: return "Use your Nginx Proxy Manager login email and password."
         case .proxmox:       return "Use your Proxmox username (e.g. root@pam) and password."
         case .unifi:         return "Use your Unifi Controller login credentials."
-        case .nextcloud:     return "Use your Nextcloud username and an app password (Settings → Security → Devices & sessions)."        case .ugreenNas:     return "Use your UGOS Pro login credentials. For TOTP Secret: open your authenticator app, find the UGREEN NAS entry, and export or copy the secret key (usually shown as a QR code or text when you set up 2FA)."        default:             return nil
+        case .nextcloud:     return "Use your Nextcloud username and an app password (Settings → Security → Devices & sessions)."        case .ugreenNas:     return "Use your UGOS Pro login credentials. If 2FA is enabled, open your authenticator app and enter the current 6-digit code. It is only needed once - after that Peekr logs in with just your username and password."        default:             return nil
         }
     }
 
