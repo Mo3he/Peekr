@@ -430,12 +430,12 @@ final class HomeViewModel: ObservableObject {
         MetricAlertStore.shared.hasRule(serviceID: serviceID, label: label)
     }
 
-    func metricAlertCondition(serviceID: UUID, label: String) -> MetricAlertStore.Condition? {
+    func metricAlertRule(serviceID: UUID, label: String) -> MetricAlertStore.Rule? {
         MetricAlertStore.shared.rule(serviceID: serviceID, label: label)
     }
 
-    func setMetricAlertCondition(_ condition: MetricAlertStore.Condition, serviceID: UUID, label: String) {
-        MetricAlertStore.shared.setRule(condition, serviceID: serviceID, label: label)
+    func setMetricAlertRule(_ rule: MetricAlertStore.Rule, serviceID: UUID, label: String) {
+        MetricAlertStore.shared.setRule(rule, serviceID: serviceID, label: label)
         objectWillChange.send()
     }
 
@@ -449,9 +449,8 @@ final class HomeViewModel: ObservableObject {
         if store.hasRule(serviceID: serviceID, label: metric.label) {
             store.removeRule(serviceID: serviceID, label: metric.label)
         } else {
-            // Default: whenAlert for metrics that can be flagged, whenValueChanges otherwise
-            let condition: MetricAlertStore.Condition = metric.isAlert ? .whenAlert : .whenValueChanges
-            store.setRule(condition, serviceID: serviceID, label: metric.label)
+            let rule: MetricAlertStore.Rule = metric.isAlert ? .whenAlert : .whenValueChanges
+            store.setRule(rule, serviceID: serviceID, label: metric.label)
         }
         objectWillChange.send()
     }

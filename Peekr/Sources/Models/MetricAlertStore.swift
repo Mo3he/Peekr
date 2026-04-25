@@ -5,20 +5,35 @@ final class MetricAlertStore {
     static let shared = MetricAlertStore()
     private init() { load() }
 
-    enum Condition: String, Codable, CaseIterable {
-        case whenAlert        // notify when metric.isAlert becomes true
-        case whenValueChanges // notify when metric.value string changes
+    struct Rule: Codable, Equatable {
+        enum Kind: String, Codable, CaseIterable {
+            case whenAlert        // notify when metric.isAlert becomes true
+            case whenValueChanges // notify when metric.value string changes
+            case threshold        // notify when numeric value crosses a user-defined limit
+        }
+        var kind: Kind
+        var thresholdAbove: Double? = nil  // fire when extracted number > this
+        var thresholdBelow: Double? = nil  // fire when extracted number < this
+
+        static let whenAlert        = Rule(kind: .whenAlert)
+        static let whenValueChanges = Rule(kind: .whenValueChanges)
     }
 
-    private let rulesKey      = "peekr.metricAlertRules"
+    // Legacy condition type used only for migration
+    private enum LegacyCondition: String, Codable {
+        case whenAlert, whenValueChanges
+    }
+
+    private let rulesKey      = "peekr.metricAlertRules2"
+    private let legacyRulesKey = "peekr.metricAlertRules"
     private let lastValuesKey = "peekr.metricLastValues"
     private let lastAlertKey  = "peekr.metricLastAlertState"
 
-    // "serviceID:label" -> condition
-    private(set) var rules: [String: Condition] = [:]
+    // "serviceID:label" -> rule
+    private(set) var rules: [String: Rule] = [:]
     // "serviceID:label" -> last seen value (for whenValueChanges dedup)
     private var lastValues: [String: String] = [:]
-    // "serviceID:label" -> last isAlert state we acted on (for whenAlert dedup)
+    // "serviceID:label" -> last "breached" state (for whenAlert and threshold dedup)
     private var lastAlertState: [String: Bool] = [:]
 
     private func ruleKey(_ serviceID: UUID, _ label: String) -> String {
@@ -29,12 +44,12 @@ final class MetricAlertStore {
         rules[ruleKey(serviceID, label)] != nil
     }
 
-    func rule(serviceID: UUID, label: String) -> Condition? {
+    func rule(serviceID: UUID, label: String) -> Rule? {
         rules[ruleKey(serviceID, label)]
     }
 
-    func setRule(_ condition: Condition, serviceID: UUID, label: String) {
-        rules[ruleKey(serviceID, label)] = condition
+    func setRule(_ rule: Rule, serviceID: UUID, label: String) {
+        rules[ruleKey(serviceID, label)] = rule
         save()
     }
 
@@ -58,9 +73,9 @@ final class MetricAlertStore {
     /// Mutates internal state to prevent duplicate notifications.
     func shouldFire(metric: ServiceMetric, serviceID: UUID) -> Bool {
         let k = ruleKey(serviceID, metric.label)
-        guard let condition = rules[k] else { return false }
+        guard let rule = rules[k] else { return false }
 
-        switch condition {
+        switch rule.kind {
         case .whenAlert:
             let wasAlert = lastAlertState[k] ?? false
             if metric.isAlert && !wasAlert {
@@ -78,15 +93,45 @@ final class MetricAlertStore {
             let prev = lastValues[k]
             lastValues[k] = metric.value
             saveLastValues()
-            // Only fire after we have seen at least one previous value
             return prev != nil && prev != metric.value
+
+        case .threshold:
+            guard let num = Self.extractNumeric(from: metric.value) else { return false }
+            let isBreached = Self.checkThreshold(value: num, above: rule.thresholdAbove, below: rule.thresholdBelow)
+            let wasBreached = lastAlertState[k] ?? false
+            if isBreached && !wasBreached {
+                lastAlertState[k] = true
+                saveLastState()
+                return true
+            }
+            if !isBreached && wasBreached {
+                lastAlertState[k] = false
+                saveLastState()
+            }
+            return false
         }
+    }
+
+    static func checkThreshold(value: Double, above: Double?, below: Double?) -> Bool {
+        if let a = above, value > a { return true }
+        if let b = below, value < b { return true }
+        return false
+    }
+
+    /// Extracts the first floating-point number from a metric value string.
+    /// e.g. "75°C" → 75.0, "9.3 GB free" → 9.3, "42%" → 42.0
+    static func extractNumeric(from string: String) -> Double? {
+        let pattern = #"-?\d+\.?\d*"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: string, range: NSRange(string.startIndex..., in: string)),
+              let range = Range(match.range, in: string) else { return nil }
+        return Double(string[range])
     }
 
     // MARK: - Persistence
 
     private func save() {
-        if let data = try? JSONEncoder().encode(rules.mapValues(\.rawValue)) {
+        if let data = try? JSONEncoder().encode(rules) {
             UserDefaults.standard.set(data, forKey: rulesKey)
         }
         saveLastValues()
@@ -106,9 +151,21 @@ final class MetricAlertStore {
     }
 
     private func load() {
+        // Try new format first
         if let data = UserDefaults.standard.data(forKey: rulesKey),
-           let dict = try? JSONDecoder().decode([String: String].self, from: data) {
-            rules = dict.compactMapValues { Condition(rawValue: $0) }
+           let decoded = try? JSONDecoder().decode([String: Rule].self, from: data) {
+            rules = decoded
+        } else if let data = UserDefaults.standard.data(forKey: legacyRulesKey),
+                  let legacy = try? JSONDecoder().decode([String: String].self, from: data) {
+            // Migrate old Condition strings to new Rule format
+            rules = legacy.compactMapValues {
+                switch $0 {
+                case "whenAlert":        return .whenAlert
+                case "whenValueChanges": return .whenValueChanges
+                default:                 return nil
+                }
+            }
+            save() // persist migrated data in new format
         }
         if let data = UserDefaults.standard.data(forKey: lastValuesKey),
            let dict = try? JSONDecoder().decode([String: String].self, from: data) {
