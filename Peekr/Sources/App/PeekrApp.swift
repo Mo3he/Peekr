@@ -21,6 +21,9 @@ struct PeekrApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
                     scheduleBackgroundRefresh()
                 }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                    Task { @MainActor in await SummaryNotificationManager.shared.rescheduleAll() }
+                }
         }
 
         #if targetEnvironment(macCatalyst)

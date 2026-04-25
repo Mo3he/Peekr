@@ -11,6 +11,7 @@ struct iPadRootView: View {
     @State private var editingService: Service?
     @State private var serviceToDelete: Service?
     @State private var showServicePicker = false
+    @State private var hasAppeared = false
     // scrollPosition removed - List naturally preserves scroll when ForEach identity is stable
     @AppStorage("autoRefreshInterval") private var refreshInterval: Double = 30
 
@@ -49,7 +50,10 @@ struct iPadRootView: View {
             Text("This service and its history will be removed.")
         }
         .onAppear {
-            vm.refreshAll()
+            if !hasAppeared {
+                hasAppeared = true
+                vm.refreshAll()
+            }
             vm.startAutoRefresh()
         }
         .onDisappear { vm.stopAutoRefresh() }

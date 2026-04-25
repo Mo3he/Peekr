@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// Render this view at 1024×1024 in the simulator, screenshot it, then drop
-/// the PNG into AppIcon.appiconset/AppIcon-1024.png.
-/// Temporarily set this as the root view in ContentView to see it full screen.
+/// Dark mode icon (default). Render at 1024×1024 in the simulator, screenshot it,
+/// then drop the PNG into AppIcon.appiconset/AppIcon-1024.png.
 struct AppIconView: View {
     var body: some View {
         GeometryReader { geo in
@@ -84,7 +83,95 @@ struct AppIconView: View {
     }
 }
 
-#Preview {
+#Preview("Dark") {
     AppIconView()
+        .frame(width: 1024, height: 1024)
+}
+
+// MARK: - Light Mode Icon
+
+/// Light mode icon variant. Render at 1024×1024 in the simulator, screenshot it,
+/// then add the PNG as a resource named "AppIconLight@2x.png" / "AppIconLight@3x.png".
+/// After adding the PNG files, uncomment the CFBundleIcons block in Info.plist.
+struct AppIconLightView: View {
+    var body: some View {
+        GeometryReader { geo in
+            let s = min(geo.size.width, geo.size.height)
+            ZStack {
+                // Light background
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.94, green: 0.96, blue: 1.00),
+                        Color(red: 0.88, green: 0.91, blue: 0.98)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                // Rack enclosure
+                RoundedRectangle(cornerRadius: s * 0.055)
+                    .fill(Color(red: 0.97, green: 0.98, blue: 1.00))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: s * 0.055)
+                            .stroke(Color.black.opacity(0.08), lineWidth: 1.5)
+                    )
+                    .frame(width: s * 0.72, height: s * 0.68)
+                    .shadow(color: .black.opacity(0.10), radius: s * 0.03)
+
+                // Rack units
+                VStack(spacing: s * 0.038) {
+                    rackUnit(s: s, dotColor: Color(red: 0.13, green: 0.73, blue: 0.28))
+                    rackUnit(s: s, dotColor: Color(red: 0.13, green: 0.73, blue: 0.28))
+                    rackUnit(s: s, dotColor: Color(red: 0.95, green: 0.60, blue: 0.00))
+                    rackUnit(s: s, dotColor: Color(red: 0.88, green: 0.18, blue: 0.18))
+                }
+            }
+        }
+        .ignoresSafeArea()
+    }
+
+    private func rackUnit(s: CGFloat, dotColor: Color) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: s * 0.025)
+                .fill(Color(red: 0.91, green: 0.93, blue: 0.98))
+                .overlay(
+                    RoundedRectangle(cornerRadius: s * 0.025)
+                        .stroke(Color.black.opacity(0.07), lineWidth: 1)
+                )
+
+            HStack(spacing: 0) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(dotColor.opacity(0.8))
+                    .frame(width: s * 0.012, height: s * 0.065)
+                    .padding(.leading, s * 0.03)
+
+                HStack(spacing: s * 0.018) {
+                    ForEach(0..<4) { _ in
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color(red: 0.84, green: 0.87, blue: 0.95))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 3)
+                                    .stroke(Color.black.opacity(0.06), lineWidth: 1)
+                            )
+                            .frame(width: s * 0.055, height: s * 0.065)
+                    }
+                }
+                .padding(.leading, s * 0.03)
+
+                Spacer()
+
+                Circle()
+                    .fill(dotColor)
+                    .frame(width: s * 0.036, height: s * 0.036)
+                    .shadow(color: dotColor.opacity(0.5), radius: s * 0.018)
+                    .padding(.trailing, s * 0.045)
+            }
+        }
+        .frame(width: s * 0.62, height: s * 0.10)
+    }
+}
+
+#Preview("Light") {
+    AppIconLightView()
         .frame(width: 1024, height: 1024)
 }

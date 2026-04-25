@@ -9,6 +9,7 @@ struct ServiceDetailView: View {
     @Environment(\..dismiss) private var dismiss
     @State private var editingService: Service?
     @State private var reorderingMetrics = false
+    @State private var selectedMetric: ServiceMetric?
 
     private var service: Service? { vm.services.first { $0.id == serviceID } }
     private var metrics: [ServiceMetric] { live.metrics[serviceID] ?? [] }
@@ -64,6 +65,9 @@ struct ServiceDetailView: View {
                 }
                 .sheet(item: $editingService) { svc in
                     AddServiceView(existing: svc) { vm.updateService($0) }
+                }
+                .sheet(item: $selectedMetric) { metric in
+                    MetricDetailSheet(metric: metric, serviceName: vm.services.first { $0.id == serviceID }?.name ?? "")
                 }
             }
         }
@@ -175,6 +179,8 @@ struct ServiceDetailView: View {
                             .font(.body.monospacedDigit())
                             .foregroundStyle(metric.isAlert ? metric.color : .secondary)
                     }
+                    .contentShape(Rectangle())
+                    .onTapGesture { selectedMetric = metric }
                 }
                 .onMove { vm.moveMetrics(for: serviceID, from: $0, to: $1) }
 

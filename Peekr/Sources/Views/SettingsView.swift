@@ -4,9 +4,11 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @ObservedObject var vm: HomeViewModel
     @AppStorage("autoRefreshInterval") private var interval: Double = 30
+    @AppStorage("useLightIcon") private var useLightIcon: Bool = false
     @Environment(\.dismiss) private var dismiss
     @State private var showImporter = false
     @State private var importResultMessage: String?
+    @State private var showNotificationSchedules = false
 
     private let intervalOptions: [(label: String, seconds: Double)] = [
         ("10 seconds", 10),
@@ -35,6 +37,28 @@ struct SettingsView: View {
                 }
 
                 networkInfoSection
+
+                Section("Notifications") {
+                    Button {
+                        showNotificationSchedules = true
+                    } label: {
+                        Label("Summary Notifications", systemImage: "bell.badge")
+                    }
+                }
+
+                Section {
+                    Toggle(isOn: $useLightIcon) {
+                        Label("Light Mode Icon", systemImage: "sun.max")
+                    }
+                    .onChange(of: useLightIcon) { _, newVal in
+                        let iconName: String? = newVal ? "AppIconLight" : nil
+                        UIApplication.shared.setAlternateIconName(iconName)
+                    }
+                } header: {
+                    Text("Appearance")
+                } footer: {
+                    Text("Switches between the dark and light version of the app icon.")
+                }
 
                 Section("Data") {
                     if let data = vm.exportJSON() {
@@ -90,6 +114,9 @@ struct SettingsView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .sheet(isPresented: $showNotificationSchedules) {
+                NotificationSchedulesView(vm: vm)
             }
             .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
                 switch result {

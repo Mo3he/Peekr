@@ -18,6 +18,7 @@ struct HomeView: View {
     @State private var showSettings = false
     @State private var serviceToDelete: Service?
     @State private var showServicePicker = false
+    @State private var hasAppeared = false
     // scrollPosition removed - List naturally preserves scroll when ForEach identity is stable
     @AppStorage("autoRefreshInterval") private var refreshInterval: Double = 30
 
@@ -91,7 +92,10 @@ struct HomeView: View {
                 Text("This service and its history will be removed.")
             }
             .onAppear {
-                vm.refreshAll()
+                if !hasAppeared {
+                    hasAppeared = true
+                    vm.refreshAll()
+                }
                 vm.startAutoRefresh()
             }
             .onDisappear {
