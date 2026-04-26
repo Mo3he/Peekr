@@ -15,6 +15,7 @@ final class LiveDataStore: ObservableObject {
     @Published var metrics: [UUID: [ServiceMetric]] = [:]
     @Published var metricsError: [UUID: String] = [:]
     @Published private(set) var checkingIDs: Set<UUID> = []
+    @Published var lastRefreshed: Date?
     /// Hidden metric labels per service - kept here so ServiceRowView can filter without vm.
     @Published var hiddenMetricLabels: [UUID: Set<String>] = [:]
 

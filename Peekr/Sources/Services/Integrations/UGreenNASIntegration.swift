@@ -1,5 +1,4 @@
 import SwiftUI
-import CryptoKit
 import Security
 
 private enum UGreenAuthError: Error {
@@ -162,7 +161,7 @@ struct UGreenNASIntegration: ServiceIntegration {
         let storedTrust = KeychainHelper.load(account: trustKey)
         var loginBody: [String: Any] = [
             "username": username, "password": encodedPw,
-            "keepalive": false, "otp": true, "is_simple": false
+            "keepalive": true, "otp": true, "is_simple": false
         ]
         if let trust = storedTrust, !trust.isEmpty {
             loginBody["trust_token"] = trust
@@ -283,42 +282,6 @@ struct UGreenNASIntegration: ServiceIntegration {
         }
         while result.count % 4 != 0 { result.append("=") }
         return result
-    }
-
-    // MARK: - TOTP (RFC 6238, HMAC-SHA1, 6 digits, 30s period)
-
-    private func generateTOTP(secret: String) -> String {
-        let cleaned = secret.uppercased().filter { $0 != " " && $0 != "-" }
-        guard let keyData = base32Decode(cleaned), !keyData.isEmpty else { return "000000" }
-        let counter = UInt64(Date().timeIntervalSince1970 / 30)
-        var counterBE = counter.bigEndian
-        let counterData = Data(bytes: &counterBE, count: 8)
-        let key = SymmetricKey(data: keyData)
-        let mac = HMAC<Insecure.SHA1>.authenticationCode(for: counterData, using: key)
-        let bytes = Array(mac)
-        let offset = Int(bytes[bytes.count - 1] & 0x0f)
-        let code = (Int(bytes[offset]     & 0x7f) << 24) |
-                   (Int(bytes[offset + 1] & 0xff) << 16) |
-                   (Int(bytes[offset + 2] & 0xff) <<  8) |
-                    Int(bytes[offset + 3] & 0xff)
-        return String(format: "%06d", code % 1_000_000)
-    }
-
-    private func base32Decode(_ s: String) -> Data? {
-        let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
-        var bits = 0; var count = 0; var result = Data()
-        for ch in s {
-            guard ch != "=" else { break }
-            guard let i = alphabet.firstIndex(of: ch) else { return nil }
-            bits = (bits << 5) | alphabet.distance(from: alphabet.startIndex, to: i)
-            count += 5
-            if count >= 8 {
-                count -= 8
-                result.append(UInt8(truncatingIfNeeded: bits >> count))
-                bits &= (1 << count) - 1
-            }
-        }
-        return result.isEmpty ? nil : result
     }
 
     // MARK: - Formatters

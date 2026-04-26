@@ -63,7 +63,7 @@ struct AddServiceView: View {
         _allowSelfSignedCert  = State(initialValue: existing?.allowSelfSignedCert ?? false)
         _customPingPath       = State(initialValue: existing?.customPingPath ?? "")
         _latencyDegradedMs    = State(initialValue: existing?.latencyDegradedMs.map { String(Int($0)) } ?? "")
-        _customIcon           = State(initialValue: existing?.customIcon ?? (existing == nil ? serviceType?.icon : nil) ?? "server.rack")
+        _customIcon           = State(initialValue: existing?.customIcon ?? existing.map { $0.serviceType.icon } ?? serviceType?.icon ?? "server.rack")
     }
 
     private var isEditing: Bool { existing != nil }
@@ -137,6 +137,8 @@ struct AddServiceView: View {
             TextField("Name", text: $name)
                 .textInputAutocapitalization(.words)
             iconPickerRow
+            TextField("Group (optional)", text: $group)
+                .textInputAutocapitalization(.words)
         } header: {
             Text("Service")
         } footer: {
@@ -374,7 +376,7 @@ struct AddServiceView: View {
                 host: cloudHost,
                 port: 443,
                 scheme: .https,
-                group: nil,
+                group: group.trimmingCharacters(in: .whitespaces).isEmpty ? nil : group.trimmingCharacters(in: .whitespaces),
                 apiKey:   apiKey.isEmpty   ? nil : apiKey.trimmingCharacters(in: .whitespaces),
                 username: username.isEmpty ? nil : username.trimmingCharacters(in: .whitespaces),
                 password: nil

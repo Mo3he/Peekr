@@ -12,7 +12,7 @@ A native iOS/iPadOS/macOS app for monitoring your self-hosted homelab services a
 - Status event log across all services
 
 ### Self-hosted services
-Home Assistant, AdGuard Home, Grafana, Portainer, Jellyfin, Plex, Sonarr, Radarr, Prowlarr, Overseerr, Proxmox, TrueNAS, UGREEN NAS (UGOS Pro), Traefik, Unifi Controller, Pi-hole, Nextcloud, Vaultwarden, Immich, Paperless-ngx, Frigate, ntfy, qBittorrent, OpenWrt, Glances, Nginx Proxy Manager, GitHub, and Generic (any HTTP endpoint)
+Home Assistant, AdGuard Home, Grafana, Portainer, Jellyfin, Plex, Sonarr, Radarr, Prowlarr, Overseerr, Proxmox, TrueNAS, UGREEN NAS (UGOS Pro), Traefik, Unifi Controller, Pi-hole, Nextcloud, Vaultwarden, Immich, Paperless-ngx, Frigate, ntfy, qBittorrent, OpenWrt, Glances, Nginx Proxy Manager, and Generic (any HTTP endpoint)
 
 UGREEN NAS handles the UGOS Pro auth flow end-to-end: username + password + a one-time 2FA code on first setup, then a cached trust token reused for subsequent logins so the OTP isn't needed again.
 
@@ -34,7 +34,7 @@ Cloud services skip the TCP/HTTP ping entirely and derive their status from whet
 - Home screen: small (overall status) and medium (status breakdown)
 - Lock screen: circular and rectangular
 - Configurable widget: pin any service to a widget and see its live status
-- Widget reads from a shared App Group container - always up to date
+- Widget reads from a shared App Group container (requires paid Apple Developer account; currently reads its own UserDefaults)
 
 ### Notifications
 - Background refresh every 15 minutes (interval configurable in Settings)

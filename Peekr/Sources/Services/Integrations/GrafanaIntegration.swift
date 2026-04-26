@@ -48,12 +48,10 @@ struct GrafanaIntegration: ServiceIntegration {
            let data = alertsJSON["data"] as? [String: Any],
            let alerts = data["alerts"] as? [[String: Any]] {
             let firing = alerts.filter { ($0["state"] as? String) == "firing" }.count
-            if firing > 0 {
-                metrics.append(ServiceMetric(
-                    label: "Alerts firing", value: "\(firing)",
-                    icon: "bell.badge.fill", color: .red, isAlert: true
-                ))
-            }
+            metrics.append(ServiceMetric(
+                label: "Alerts firing", value: "\(firing)",
+                icon: "bell.badge.fill", color: firing > 0 ? .red : .secondary, isAlert: firing > 0
+            ))
         }
 
         return metrics

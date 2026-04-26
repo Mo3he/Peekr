@@ -42,6 +42,17 @@ struct SettingsView: View {
         ("Disabled",   0),
     ]
 
+    private var feedbackURL: URL {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let osv = ProcessInfo.processInfo.operatingSystemVersion
+        let os = "\(osv.majorVersion).\(osv.minorVersion).\(osv.patchVersion)"
+        let subject = "Peekr Feedback – v\(version)"
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let body = "App Version: \(version)\niOS: \(os)\n\n"
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        return URL(string: "mailto:feedback@mohome.net?subject=\(subject)&body=\(body)")!
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -130,6 +141,9 @@ struct SettingsView: View {
 
                 Section("About") {
                     LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
+                    Link(destination: feedbackURL) {
+                        Label("Send Feedback", systemImage: "envelope")
+                    }
                     Link(destination: URL(string: "https://www.buymeacoffee.com/mo3he")!) {
                         HStack {
                             Label("Buy Me a Coffee", systemImage: "cup.and.saucer.fill")

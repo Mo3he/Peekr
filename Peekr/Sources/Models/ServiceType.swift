@@ -11,7 +11,6 @@ enum ServiceType: String, Codable, CaseIterable {
     case jellyfin        = "jellyfin"
     case qBittorrent     = "qbittorrent"
     case openWrt         = "openwrt"
-    // New
     case plex            = "plex"
     case sonarr          = "sonarr"
     case radarr          = "radarr"
@@ -60,7 +59,9 @@ enum ServiceType: String, Codable, CaseIterable {
         case .immich:         return "Immich"
         case .paperless:      return "Paperless-ngx"
         case .frigate:        return "Frigate"
-        case .ntfy:           return "ntfy"        case .ugreenNas:      return "UGREEN NAS"        case .claude:         return "Claude"
+        case .ntfy:           return "ntfy"
+        case .ugreenNas:      return "UGREEN NAS"
+        case .claude:         return "Claude"
         case .copilot:        return "GitHub Copilot"
         case .generic:        return "Generic"
         }
@@ -191,7 +192,9 @@ enum ServiceType: String, Codable, CaseIterable {
         case .nginxProxyMgr: return "Use your Nginx Proxy Manager login email and password."
         case .proxmox:       return "Use your Proxmox username (e.g. root@pam) and password."
         case .unifi:         return "Use your Unifi Controller login credentials."
-        case .nextcloud:     return "Use your Nextcloud username and an app password (Settings → Security → Devices & sessions)."        case .ugreenNas:     return "Use your UGOS Pro login credentials. If 2FA is enabled, open your authenticator app and enter the current 6-digit code. It is only needed once - after that Peekr logs in with just your username and password."        default:             return nil
+        case .nextcloud:     return "Use your Nextcloud username and an app password (Settings → Security → Devices & sessions)."
+        case .ugreenNas:     return "Use your UGOS Pro login credentials. If 2FA is enabled, open your authenticator app and enter the current 6-digit code. It is only needed once - after that Peekr logs in with just your username and password."
+        default:             return nil
         }
     }
 

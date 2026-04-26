@@ -183,7 +183,7 @@ struct iPadRootView: View {
 
     @ViewBuilder
     private var detailPanel: some View {
-        if let id = selectedServiceID, let service = vm.services.first(where: { $0.id == id }) {
+        if let id = selectedServiceID, vm.services.contains(where: { $0.id == id }) {
             iPadDetailView(serviceID: id, vm: vm)
                 .id(id)
         } else {
@@ -223,7 +223,7 @@ private struct iPadOverallStatusRow: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if let date = vm.lastRefreshed {
+                if let date = live.lastRefreshed {
                     Text(date, style: .relative)
                         .font(.caption2).foregroundStyle(.tertiary)
                 }

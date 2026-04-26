@@ -55,9 +55,7 @@ struct NextcloudIntegration: ServiceIntegration {
            let updatesData = updatesOcs["data"] as? [String: Any],
            let apps = updatesData["apps"] as? [String: Any] {
             let count = apps.count
-            if count > 0 {
-                metrics.append(ServiceMetric(label: "App updates", value: "\(count)", icon: "arrow.down.circle.fill", color: .orange, isAlert: true))
-            }
+            metrics.append(ServiceMetric(label: "App updates", value: "\(count)", icon: "arrow.down.circle.fill", color: count > 0 ? .orange : .secondary, isAlert: count > 0))
         }
 
         return metrics

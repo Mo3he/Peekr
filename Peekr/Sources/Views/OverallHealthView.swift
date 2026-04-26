@@ -52,7 +52,7 @@ struct OverallHealthView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(overallHealth.label)
                             .font(.title2.bold())
-                        if let date = vm.lastRefreshed {
+                        if let date = live.lastRefreshed {
                             HStack(spacing: 4) {
                                 Image(systemName: "arrow.clockwise")
                                     .font(.caption2)

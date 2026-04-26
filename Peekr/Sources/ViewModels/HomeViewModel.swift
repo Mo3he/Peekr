@@ -16,7 +16,6 @@ struct ServiceLiveData {
 final class HomeViewModel: ObservableObject {
     @Published var services: [Service] = []
     @Published var isRefreshing = false
-    @Published var lastRefreshed: Date?
     @Published var searchText = ""
     @Published var statusFilter: ServiceStatus? = nil
 
@@ -36,6 +35,18 @@ final class HomeViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var autoRefreshTask: Task<Void, Never>?
 
+    private let groupOrderKey = "peekr.groupOrder"
+    private var groupOrderCache: [String] = []
+    private var groupOrder: [String] {
+        get { groupOrderCache }
+        set {
+            groupOrderCache = newValue
+            UserDefaults.standard.set(newValue, forKey: groupOrderKey)
+        }
+    }
+
+    static let otherSentinel = "__other__"
+
     private let metricOrderKey = "peekr.metricOrder"
     private var metricOrderCache: [String: [String]] = [:]
     private var metricOrder: [String: [String]] {
@@ -48,6 +59,10 @@ final class HomeViewModel: ObservableObject {
     }
 
     init() {
+        if let saved = UserDefaults.standard.stringArray(forKey: groupOrderKey) {
+            groupOrderCache = saved
+        }
+
         // Load metric ordering / hidden labels into in-memory caches once at init,
         // so the computed-property accessors don't decode JSON on every read.
         if let data = UserDefaults.standard.data(forKey: metricOrderKey),
@@ -100,9 +115,34 @@ final class HomeViewModel: ObservableObject {
         return list
     }
 
-    /// Distinct groups from all services, sorted.
+    /// Distinct named groups in user-defined order (never includes the otherSentinel).
     var groups: [String] {
-        Array(Set(services.compactMap(\.group))).sorted()
+        let existing = Set(services.compactMap(\.group).filter { !$0.isEmpty })
+        let ordered = groupOrderCache.filter { $0 != Self.otherSentinel && existing.contains($0) }
+        let new = existing.subtracting(Set(ordered)).sorted()
+        return ordered + new
+    }
+
+    /// Full display order for group sections, including the "Other" (ungrouped) sentinel.
+    func displayGroupOrder(hasOther: Bool) -> [String] {
+        let named = groups
+        guard hasOther else { return named }
+        if groupOrderCache.contains(Self.otherSentinel) {
+            let namedSet = Set(named)
+            var result: [String] = []
+            for entry in groupOrderCache {
+                if entry == Self.otherSentinel { result.append(entry) }
+                else if namedSet.contains(entry) { result.append(entry) }
+            }
+            let included = Set(result.filter { $0 != Self.otherSentinel })
+            for g in named where !included.contains(g) { result.append(g) }
+            return result
+        }
+        return named + [Self.otherSentinel]
+    }
+
+    func setGroupOrder(_ order: [String]) {
+        groupOrder = order
     }
 
     // MARK: - Computed counts (read from LiveDataStore)
@@ -140,7 +180,6 @@ final class HomeViewModel: ObservableObject {
         Task {
             await performBackgroundRefresh(force: true)
             isRefreshing = false
-            lastRefreshed = Date()
             #if !targetEnvironment(macCatalyst)
             haptic.notificationOccurred(.success)
             #endif
@@ -289,8 +328,11 @@ final class HomeViewModel: ObservableObject {
             let id = services[idx].id
             live.remove(id: id)
             removeMetricOrder(for: id)
+            MetricAlertStore.shared.removeAllRules(for: id)
             historyStore.remove(serviceID: id)
             uptimeStore.remove(serviceID: id)
+            KeychainHelper.delete(account: "ugnas-session-\(id.uuidString)")
+            KeychainHelper.delete(account: "ugnas-trust-\(id.uuidString)")
         }
         store.remove(at: offsets)
     }
@@ -301,6 +343,11 @@ final class HomeViewModel: ObservableObject {
 
     func applyReorder(_ ordered: [Service]) {
         store.reorder(to: ordered)
+    }
+
+    func applyReorder(_ orderedServices: [Service], groupOrder orderedGroups: [String]) {
+        store.reorder(to: orderedServices)
+        setGroupOrder(orderedGroups)
     }
 
     /// Used by grouped sections: move a set of service IDs to just before `beforeID` (or end).
@@ -552,6 +599,7 @@ final class HomeViewModel: ObservableObject {
                     newLiveData[service.id] = liveEntry
                     newMetrics[service.id]  = fetched
                     newErrors.removeValue(forKey: service.id)
+                    uptimeStore.record(serviceID: service.id, status: liveEntry.status)
                     var tmp = service; tmp.status = liveEntry.status
                     recordTransition(previousStatus: previousStatus, service: tmp)
                 } catch let e as IntegrationError {
@@ -561,20 +609,22 @@ final class HomeViewModel: ObservableObject {
                         newLiveData[service.id] = liveEntry
                         newMetrics[service.id]  = []
                         newErrors[service.id]   = "Authentication failed. Check your credentials in Edit."
+                        uptimeStore.record(serviceID: service.id, status: liveEntry.status)
                     case .transient:
-                        // Keep the previous status + metrics; just surface a backoff note.
                         newErrors[service.id] = e.localizedDescription
                     case .serviceError, .unexpectedFormat, .badURL:
                         liveEntry.status = .degraded
                         newLiveData[service.id] = liveEntry
                         newMetrics[service.id]  = []
                         newErrors[service.id]   = e.localizedDescription
+                        uptimeStore.record(serviceID: service.id, status: liveEntry.status)
                     }
                 } catch {
                     liveEntry.status = .degraded
                     newLiveData[service.id] = liveEntry
                     newMetrics[service.id]  = []
                     newErrors[service.id]   = error.localizedDescription
+                    uptimeStore.record(serviceID: service.id, status: liveEntry.status)
                 }
                 continue
             }
@@ -637,7 +687,7 @@ final class HomeViewModel: ObservableObject {
         // Apply to LiveDataStore - completely separate from HomeViewModel's @Published properties.
         // HomeView never observes LiveDataStore, so the List is never re-rendered by this.
         live.applyBatch(liveData: newLiveData, metrics: newMetrics, errors: newErrors)
-        lastRefreshed = Date()
+        live.lastRefreshed = Date()
     }
 
     func stopAutoRefresh() {

@@ -19,8 +19,10 @@ struct HomeView: View {
     @State private var showServicePicker = false
     @State private var hasAppeared = false
 
+    fileprivate enum ReorderMode { case none, services, groups }
+
     @State private var showOverallHealth = false
-    @State private var isReordering = false
+    @State private var reorderMode: ReorderMode = .none
     @State private var isSearchActive = false
     // scrollPosition removed - List naturally preserves scroll when ForEach identity is stable
     @AppStorage("autoRefreshInterval") private var refreshInterval: Double = 30
@@ -99,8 +101,8 @@ struct HomeView: View {
                 .onChange(of: refreshInterval) { _, _ in
                     vm.startAutoRefresh()
                 }
-                .onChange(of: isReordering) { _, reordering in
-                    if reordering {
+                .onChange(of: reorderMode) { _, mode in
+                    if mode != .none {
                         vm.stopAutoRefresh()
                     } else {
                         vm.startAutoRefresh()
@@ -111,34 +113,21 @@ struct HomeView: View {
 
     @ViewBuilder
     private var serviceList: some View {
-        if isSearchActive {
-            List {
-                if !network.canReachLocal && vm.services.contains(where: \.isLocalNetwork) {
-                    networkBanner
-                }
-                if !vm.services.isEmpty {
-                    overallStatusSection
-                }
-                servicesSection
+        List {
+            if !network.canReachLocal && vm.services.contains(where: \.isLocalNetwork) {
+                networkBanner
             }
-            .environment(\.editMode, .constant(isReordering ? .active : .inactive))
-            .listStyle(.insetGrouped)
-            .searchable(text: $vm.searchText, isPresented: $isSearchActive, prompt: "Search services")
-            .refreshable { vm.refreshAll() }
-        } else {
-            List {
-                if !network.canReachLocal && vm.services.contains(where: \.isLocalNetwork) {
-                    networkBanner
-                }
-                if !vm.services.isEmpty {
-                    overallStatusSection
-                }
-                servicesSection
+            if !vm.services.isEmpty {
+                overallStatusSection
             }
-            .environment(\.editMode, .constant(isReordering ? .active : .inactive))
-            .listStyle(.insetGrouped)
-            .refreshable { vm.refreshAll() }
-            .onChange(of: vm.searchText) { _, _ in vm.searchText = "" }
+            servicesSection
+        }
+        .environment(\.editMode, .constant(reorderMode != .none ? .active : .inactive))
+        .listStyle(.insetGrouped)
+        .searchable(text: $vm.searchText, isPresented: $isSearchActive, prompt: "Search services")
+        .refreshable { vm.refreshAll() }
+        .onChange(of: isSearchActive) { _, active in
+            if !active { vm.searchText = "" }
         }
     }
 
@@ -226,9 +215,22 @@ struct HomeView: View {
 
     @ViewBuilder
     private var servicesSection: some View {
-        if isReordering {
-            ReorderServicesSection(services: vm.services, isReordering: $isReordering) { ordered in
+        if reorderMode == .services {
+            let hasUngrouped = vm.services.contains { $0.group == nil || $0.group!.isEmpty }
+            ReorderServicesSection(
+                services: vm.services,
+                displayGroupOrder: vm.displayGroupOrder(hasOther: hasUngrouped),
+                reorderMode: $reorderMode
+            ) { ordered in
                 vm.applyReorder(ordered)
+            }
+        } else if reorderMode == .groups {
+            let hasUngrouped = vm.services.contains { $0.group == nil || $0.group!.isEmpty }
+            ReorderGroupsSection(
+                groups: vm.displayGroupOrder(hasOther: hasUngrouped),
+                reorderMode: $reorderMode
+            ) { orderedGroups in
+                vm.setGroupOrder(orderedGroups)
             }
         } else if vm.services.isEmpty {
             Section {
@@ -236,7 +238,27 @@ struct HomeView: View {
             }
         } else if vm.filteredServices.isEmpty {
             Section {
-                ContentUnavailableView.search(text: vm.searchText)
+                if vm.searchText.isEmpty {
+                    ContentUnavailableView(
+                        "No \(vm.statusFilter?.label ?? "Services") Found",
+                        systemImage: vm.statusFilter?.icon ?? "magnifyingglass",
+                        description: Text("No services match this filter.")
+                    )
+                } else {
+                    ContentUnavailableView.search(text: vm.searchText)
+                }
+            } header: {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Services")
+                    HStack(spacing: 8) {
+                        filterChip(label: "All", filter: nil)
+                        filterChip(label: "Online", filter: .online)
+                        filterChip(label: "Degraded", filter: .degraded)
+                        filterChip(label: "Offline", filter: .offline)
+                        Spacer()
+                    }
+                }
+                .textCase(nil)
             }
         } else if !vm.searchText.isEmpty || vm.statusFilter != nil || vm.groups.isEmpty {
             // Search / filter active, or no groups defined: flat list under one header
@@ -244,14 +266,18 @@ struct HomeView: View {
         } else {
             // Grouped view
             let ungrouped = vm.filteredServices.filter { $0.group == nil || $0.group!.isEmpty }
-            ForEach(vm.groups, id: \.self) { group in
-                let inGroup = vm.filteredServices.filter { $0.group == group }
-                if !inGroup.isEmpty {
-                    serviceRows(for: inGroup, header: group)
+            let displayOrder = vm.displayGroupOrder(hasOther: !ungrouped.isEmpty)
+            ForEach(displayOrder, id: \.self) { entry in
+                if entry == HomeViewModel.otherSentinel {
+                    if !ungrouped.isEmpty {
+                        serviceRows(for: ungrouped, header: "Other")
+                    }
+                } else {
+                    let inGroup = vm.filteredServices.filter { $0.group == entry }
+                    if !inGroup.isEmpty {
+                        serviceRows(for: inGroup, header: entry)
+                    }
                 }
-            }
-            if !ungrouped.isEmpty {
-                serviceRows(for: ungrouped, header: vm.groups.isEmpty ? "Services" : "Other")
             }
         }
     }
@@ -325,11 +351,26 @@ struct HomeView: View {
                         filterChip(label: "Degraded", filter: .degraded)
                         filterChip(label: "Offline", filter: .offline)
                         Spacer()
-                        Button("Reorder") {
-                            withAnimation { isReordering = true }
+                        Menu {
+                            Button {
+                                withAnimation { reorderMode = .services }
+                            } label: {
+                                Label("Reorder Services", systemImage: "arrow.up.arrow.down")
+                            }
+                            let hasUngroupedForMenu = vm.services.contains { $0.group == nil || $0.group!.isEmpty }
+                            let totalGroupSections = vm.groups.count + (hasUngroupedForMenu ? 1 : 0)
+                            if totalGroupSections >= 2 {
+                                Button {
+                                    withAnimation { reorderMode = .groups }
+                                } label: {
+                                    Label("Reorder Groups", systemImage: "folder")
+                                }
+                            }
+                        } label: {
+                            Text("Reorder")
+                                .font(.caption)
+                                .textCase(nil)
                         }
-                        .font(.caption)
-                        .textCase(nil)
                     }
                 }
             }
@@ -430,7 +471,7 @@ private struct OverallStatusSection: View {
                         Text("checked")
                             .font(.caption2)
                             .foregroundStyle(.quaternary)
-                        if let date = vm.lastRefreshed {
+                        if let date = live.lastRefreshed {
                             Text(date, style: .relative)
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
@@ -456,48 +497,123 @@ private struct OverallStatusSection: View {
     }
 }
 
-// MARK: - Reorder Section (isolated child view)
-/// Keeps the reorder buffer as local @State so onMove mutations only re-render
-/// this view, not HomeView - preventing the drag handle from flickering.
-private struct ReorderServicesSection: View {
-    @Binding var isReordering: Bool
-    let onCommit: ([Service]) -> Void
-    @State private var buffer: [Service]
+// MARK: - Reorder sections (isolated child views so onMove mutations don't re-render HomeView)
 
-    init(services: [Service], isReordering: Binding<Bool>, onCommit: @escaping ([Service]) -> Void) {
-        _isReordering = isReordering
-        _buffer = State(initialValue: services)
+private struct ReorderServicesSection: View {
+    @Binding var reorderMode: HomeView.ReorderMode
+    let onCommit: ([Service]) -> Void
+    let displayGroupOrder: [String]
+    @State private var flatBuffer: [Service]
+    @State private var groupBuffers: [(key: String, label: String, services: [Service])]
+
+    init(services: [Service], displayGroupOrder: [String],
+         reorderMode: Binding<HomeView.ReorderMode>,
+         onCommit: @escaping ([Service]) -> Void) {
+        _reorderMode = reorderMode
+        self.onCommit = onCommit
+        self.displayGroupOrder = displayGroupOrder
+        if displayGroupOrder.isEmpty {
+            _flatBuffer    = State(initialValue: services)
+            _groupBuffers  = State(initialValue: [])
+        } else {
+            _flatBuffer = State(initialValue: [])
+            _groupBuffers = State(initialValue: displayGroupOrder.map { key in
+                let label = key == HomeViewModel.otherSentinel ? "Other" : key
+                let grouped: [Service] = key == HomeViewModel.otherSentinel
+                    ? services.filter { $0.group == nil || $0.group!.isEmpty }
+                    : services.filter { $0.group == key }
+                return (key: key, label: label, services: grouped)
+            })
+        }
+    }
+
+    var body: some View {
+        if displayGroupOrder.isEmpty {
+            Section {
+                ForEach(flatBuffer) { service in serviceRow(service) }
+                    .onMove { src, dst in flatBuffer.move(fromOffsets: src, toOffset: dst) }
+            } header: {
+                sectionHeader("Services")
+            }
+        } else {
+            ForEach(groupBuffers.indices, id: \.self) { idx in
+                Section {
+                    ForEach(groupBuffers[idx].services) { service in serviceRow(service) }
+                        .onMove { src, dst in groupBuffers[idx].services.move(fromOffsets: src, toOffset: dst) }
+                } header: {
+                    if idx == 0 { sectionHeader(groupBuffers[idx].label) }
+                    else { Text(groupBuffers[idx].label) }
+                }
+            }
+        }
+    }
+
+    private func serviceRow(_ service: Service) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: service.icon)
+                .foregroundStyle(service.status.color)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(service.name).font(.body.weight(.semibold))
+                Text(service.displayURL).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .contentShape(Rectangle())
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Button("Done") {
+                let result = displayGroupOrder.isEmpty
+                    ? flatBuffer
+                    : groupBuffers.flatMap { $0.services }
+                onCommit(result)
+                reorderMode = .none
+            }
+            .font(.caption)
+            .textCase(nil)
+        }
+    }
+}
+
+private struct ReorderGroupsSection: View {
+    @Binding var reorderMode: HomeView.ReorderMode
+    let onCommit: ([String]) -> Void
+    @State private var buffer: [String]
+
+    init(groups: [String], reorderMode: Binding<HomeView.ReorderMode>,
+         onCommit: @escaping ([String]) -> Void) {
+        _reorderMode = reorderMode
+        _buffer      = State(initialValue: groups)
         self.onCommit = onCommit
     }
 
     var body: some View {
         Section {
-            ForEach(buffer) { service in
+            ForEach(buffer, id: \.self) { group in
+                let isOther = group == HomeViewModel.otherSentinel
                 HStack(spacing: 14) {
-                    Image(systemName: service.icon)
-                        .foregroundStyle(service.status.color)
+                    Image(systemName: isOther ? "tray.fill" : "folder.fill")
+                        .foregroundStyle(isOther ? Color.secondary : Color.accentColor)
                         .frame(width: 28)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(service.name)
-                            .font(.body.weight(.semibold))
-                        Text(service.displayURL)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text(isOther ? "Other" : group)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(isOther ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                     Spacer()
                 }
                 .contentShape(Rectangle())
             }
-            .onMove { src, dst in
-                buffer.move(fromOffsets: src, toOffset: dst)
-            }
+            .onMove { src, dst in buffer.move(fromOffsets: src, toOffset: dst) }
         } header: {
             HStack {
-                Text("Services")
+                Text("Groups")
                 Spacer()
                 Button("Done") {
                     onCommit(buffer)
-                    isReordering = false
+                    reorderMode = .none
                 }
                 .font(.caption)
                 .textCase(nil)

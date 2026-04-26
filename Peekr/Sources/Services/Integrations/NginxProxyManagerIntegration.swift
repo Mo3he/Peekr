@@ -17,6 +17,10 @@ private actor NPMTokenCache {
     func store(_ token: String, for key: String) {
         cache[key] = (token: token, expiry: Date().addingTimeInterval(3300))
     }
+
+    func evict(for key: String) {
+        cache.removeValue(forKey: key)
+    }
 }
 
 struct NginxProxyManagerIntegration: ServiceIntegration {
@@ -52,38 +56,45 @@ struct NginxProxyManagerIntegration: ServiceIntegration {
         let headers = ["Authorization": "Bearer \(token)"]
         var metrics: [ServiceMetric] = []
 
-        // Proxy hosts + certificates in parallel
+        // Proxy hosts + certificates in parallel. Eagerly await both so a 401 on either
+        // evicts the cached JWT before propagating up (preventing retry loops with a bad token).
         async let hostsResult = fetchJSON(url: URL(string: "\(base)/api/nginx/proxy-hosts")!, headers: headers)
         async let certsResult = fetchJSON(url: URL(string: "\(base)/api/nginx/certificates")!, headers: headers)
 
-        if let hosts = try? await hostsResult as? [[String: Any]] {
-            let enabled = hosts.filter { ($0["enabled"] as? Int) == 1 }.count
-            metrics.append(ServiceMetric(
-                label: "Proxy hosts",
-                value: "\(enabled) enabled / \(hosts.count) total",
-                icon: "arrow.triangle.branch",
-                color: enabled > 0 ? .green : .secondary
-            ))
-        }
+        do {
+            let hostsAny = try await hostsResult
+            let certsAny = try await certsResult
 
-        if let certs = try? await certsResult as? [[String: Any]] {
-            metrics.append(ServiceMetric(label: "SSL certs", value: "\(certs.count)", icon: "lock.fill", color: .blue))
+            if let hosts = hostsAny as? [[String: Any]] {
+                let enabled = hosts.filter { ($0["enabled"] as? Int) == 1 }.count
+                metrics.append(ServiceMetric(
+                    label: "Proxy hosts",
+                    value: "\(enabled) enabled / \(hosts.count) total",
+                    icon: "arrow.triangle.branch",
+                    color: enabled > 0 ? .green : .secondary
+                ))
+            }
 
-            let expiringSoon = certs.filter { cert -> Bool in
-                guard let expires = cert["expires_on"] as? String else { return false }
-                let fmt = ISO8601DateFormatter()
-                guard let date = fmt.date(from: expires) else { return false }
-                return date.timeIntervalSinceNow < 30 * 86400
-            }.count
-            if expiringSoon > 0 {
+            if let certs = certsAny as? [[String: Any]] {
+                metrics.append(ServiceMetric(label: "SSL certs", value: "\(certs.count)", icon: "lock.fill", color: .blue))
+
+                let expiringSoon = certs.filter { cert -> Bool in
+                    guard let expires = cert["expires_on"] as? String else { return false }
+                    let fmt = ISO8601DateFormatter()
+                    guard let date = fmt.date(from: expires) else { return false }
+                    return date.timeIntervalSinceNow < 30 * 86400
+                }.count
                 metrics.append(ServiceMetric(
                     label: "Expiring soon",
                     value: "\(expiringSoon) cert\(expiringSoon == 1 ? "" : "s")",
                     icon: "exclamationmark.shield.fill",
-                    color: .orange,
-                    isAlert: true
+                    color: expiringSoon > 0 ? .orange : .secondary,
+                    isAlert: expiringSoon > 0
                 ))
             }
+        } catch IntegrationError.authFailed {
+            await NPMTokenCache.shared.evict(for: cacheKey)
+            throw IntegrationError.authFailed
         }
 
         return metrics

@@ -4,6 +4,7 @@ import SwiftUI
 /// Compact service list shown in the macOS menu bar popover.
 struct MenuBarStatusView: View {
     @EnvironmentObject private var vm: HomeViewModel
+    @ObservedObject private var live = LiveDataStore.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -54,7 +55,7 @@ struct MenuBarStatusView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                if let date = vm.lastRefreshed {
+                if let date = live.lastRefreshed {
                     Text(date, style: .relative)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
@@ -84,7 +85,7 @@ struct MenuBarStatusView: View {
                 Text(service.host).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
-            if let ms = service.latencyMs {
+            if let ms = live.liveData[service.id]?.latencyMs ?? service.latencyMs {
                 Text(String(format: "%.0f ms", ms))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)

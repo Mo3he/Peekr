@@ -5,12 +5,13 @@ struct GlancesIntegration: ServiceIntegration {
         let base = baseURL(service)
         let api = await resolvedAPIBase(base: base)
 
-        async let cpu  = fetchJSON(url: URL(string: "\(api)/cpu")!)
-        async let mem  = fetchJSON(url: URL(string: "\(api)/mem")!)
-        async let fs   = fetchJSON(url: URL(string: "\(api)/fs")!)
-        async let load = fetchJSON(url: URL(string: "\(api)/load")!)
-        async let net  = fetchJSON(url: URL(string: "\(api)/network")!)
-        async let swap = fetchJSON(url: URL(string: "\(api)/memswap")!)
+        async let cpu     = fetchJSON(url: URL(string: "\(api)/cpu")!)
+        async let mem     = fetchJSON(url: URL(string: "\(api)/mem")!)
+        async let fs      = fetchJSON(url: URL(string: "\(api)/fs")!)
+        async let load    = fetchJSON(url: URL(string: "\(api)/load")!)
+        async let net     = fetchJSON(url: URL(string: "\(api)/network")!)
+        async let swap    = fetchJSON(url: URL(string: "\(api)/memswap")!)
+        async let sensors = fetchJSON(url: URL(string: "\(api)/sensors")!)
 
         var metrics: [ServiceMetric] = []
 
@@ -83,15 +84,48 @@ struct GlancesIntegration: ServiceIntegration {
             ))
         }
 
+        if let sensorList = try? await sensors as? [[String: Any]] {
+            // Show up to 3 temperature sensors (CPU first, then others)
+            let temps = sensorList.filter {
+                let unit = $0["unit"] as? String ?? ""
+                let type_ = $0["type"] as? String ?? ""
+                return unit == "C" || type_.contains("temperature") || type_ == "temperature_core"
+            }
+            let sorted = temps.sorted { a, b in
+                let aLabel = (a["label"] as? String ?? "").lowercased()
+                let bLabel = (b["label"] as? String ?? "").lowercased()
+                let aCPU = aLabel.contains("cpu") || aLabel.contains("core") || aLabel.contains("package")
+                let bCPU = bLabel.contains("cpu") || bLabel.contains("core") || bLabel.contains("package")
+                if aCPU != bCPU { return aCPU }
+                return aLabel < bLabel
+            }
+            for sensor in sorted.prefix(3) {
+                guard let label = sensor["label"] as? String,
+                      let value = sensor["value"] as? Double, value > 0 else { continue }
+                let icon = label.lowercased().contains("cpu") || label.lowercased().contains("core") || label.lowercased().contains("package")
+                    ? "cpu" : "thermometer.medium"
+                metrics.append(ServiceMetric(
+                    label: label,
+                    value: String(format: "%.0f°C", value),
+                    icon: icon,
+                    color: gaugeColor(value, warn: 70, crit: 85),
+                    isAlert: value >= 85
+                ))
+            }
+        }
+
         return metrics
     }
 
     /// Cache resolved API version per base URL so we only probe once per host.
-    private static var versionCache: [String: String] = [:]
+    /// Entry expires after 24 hours so a v3→v4 upgrade is picked up without an app restart.
+    private static var versionCache: [String: (base: String, expiry: Date)] = [:]
 
     /// Try Glances API v4 first; fall back to v3 for older installations.
     private func resolvedAPIBase(base: String) async -> String {
-        if let cached = GlancesIntegration.versionCache[base] { return cached }
+        if let entry = GlancesIntegration.versionCache[base], entry.expiry > Date() {
+            return entry.base
+        }
         let resolved: String
         if let url = URL(string: "\(base)/api/4/cpu"),
            let result = try? await fetchJSON(url: url) as? [String: Any],
@@ -100,7 +134,7 @@ struct GlancesIntegration: ServiceIntegration {
         } else {
             resolved = "\(base)/api/3"
         }
-        GlancesIntegration.versionCache[base] = resolved
+        GlancesIntegration.versionCache[base] = (base: resolved, expiry: Date().addingTimeInterval(86400))
         return resolved
     }
 

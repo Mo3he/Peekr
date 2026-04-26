@@ -37,23 +37,25 @@ enum BackgroundRefreshCoordinator {
             if service.serviceType.isCloudService {
                 let integration = IntegrationProvider.integration(for: service)
                 do {
-                    let fetched = try await integration.fetchMetrics(service: service)
+                    var fetched = try await integration.fetchMetrics(service: service)
+                    fetched = applyMetricOrder(fetched, serviceID: service.id)
                     liveEntry.status = fetched.isEmpty ? .degraded : .online
                     newLiveData[service.id] = liveEntry
                     newMetrics[service.id]  = fetched
                     newErrors.removeValue(forKey: service.id)
+                    uptimeStore.record(serviceID: service.id, status: liveEntry.status)
                     pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
                     eventStore.recordTransition(previousStatus: previousStatus,
                                                 newStatus: liveEntry.status,
                                                 service: service)
                 } catch IntegrationError.transient(let retryAfter) {
-                    // Transient: keep prior live state + metrics, surface backoff message.
                     newErrors[service.id] = IntegrationError.transient(retryAfter: retryAfter).localizedDescription
                 } catch {
                     liveEntry.status = .degraded
                     newLiveData[service.id] = liveEntry
                     newMetrics[service.id]  = []
                     newErrors[service.id]   = error.localizedDescription
+                    uptimeStore.record(serviceID: service.id, status: liveEntry.status)
                     pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
                 }
                 continue
@@ -106,7 +108,8 @@ enum BackgroundRefreshCoordinator {
 
             let integration = IntegrationProvider.integration(for: service)
             do {
-                let fetched = try await integration.fetchMetrics(service: service)
+                var fetched = try await integration.fetchMetrics(service: service)
+                fetched = applyMetricOrder(fetched, serviceID: service.id)
                 newMetrics[service.id] = fetched
                 newErrors.removeValue(forKey: service.id)
             } catch IntegrationError.transient(let retryAfter) {
@@ -122,6 +125,16 @@ enum BackgroundRefreshCoordinator {
             store.batchUpdate(pendingStoreUpdates)
         }
         live.applyBatch(liveData: newLiveData, metrics: newMetrics, errors: newErrors)
+    }
+
+    private static func applyMetricOrder(_ fetched: [ServiceMetric], serviceID: UUID) -> [ServiceMetric] {
+        guard let data = UserDefaults.standard.data(forKey: "peekr.metricOrder"),
+              let dict = try? JSONDecoder().decode([String: [String]].self, from: data),
+              let saved = dict[serviceID.uuidString], !saved.isEmpty else { return fetched }
+        let indexed = Dictionary(uniqueKeysWithValues: fetched.map { ($0.label, $0) })
+        let ordered = saved.compactMap { indexed[$0] }
+        let remaining = fetched.filter { !saved.contains($0.label) }
+        return ordered + remaining
     }
 
     private static func merged(service: Service, liveEntry: ServiceLiveData) -> Service {

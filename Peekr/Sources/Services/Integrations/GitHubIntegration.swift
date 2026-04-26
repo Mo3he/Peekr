@@ -1,5 +1,24 @@
 import SwiftUI
 
+// Shared rate-limit cache so all service instances using the same token
+// report the same value within a refresh cycle.
+private actor GitHubRateLimitCache {
+    struct Entry { let remaining: Int; let limit: Int; let date: Date }
+    private var store: [String: Entry] = [:]
+    private let ttl: TimeInterval = 60
+
+    static let shared = GitHubRateLimitCache()
+
+    func get(token: String) -> Entry? {
+        guard let e = store[token], Date().timeIntervalSince(e.date) < ttl else { return nil }
+        return e
+    }
+
+    func set(token: String, remaining: Int, limit: Int) {
+        store[token] = Entry(remaining: remaining, limit: limit, date: Date())
+    }
+}
+
 struct GitHubIntegration: ServiceIntegration {
     private let apiBase = "https://api.github.com"
 
@@ -21,22 +40,29 @@ struct GitHubIntegration: ServiceIntegration {
             metrics += await actionsRuns(path: repoPath, headers: headers)
         }
 
-        // Rate limit (works with or without auth)
-        if let url = URL(string: "\(apiBase)/rate_limit"),
+        // Rate limit — shared cache per token so all repos with the same key
+        // report the same value within a 60-second window.
+        let cacheKey = service.apiKey ?? ""
+        var rlEntry = await GitHubRateLimitCache.shared.get(token: cacheKey)
+        if rlEntry == nil,
+           let url = URL(string: "\(apiBase)/rate_limit"),
            let json = try? await fetchJSON(url: url, headers: headers) as? [String: Any] {
             let rate = (json["resources"] as? [String: Any]).flatMap { $0["core"] as? [String: Any] }
                     ?? json["rate"] as? [String: Any]
-            if let remaining = rate?["remaining"] as? Int,
-               let limit = rate?["limit"] as? Int {
-                let pct = limit > 0 ? Double(remaining) / Double(limit) * 100 : 100
-                metrics.append(ServiceMetric(
-                    label: "API rate limit",
-                    value: "\(remaining) / \(limit)",
-                    icon: "gauge.medium",
-                    color: pct < 20 ? .red : pct < 50 ? .orange : .green,
-                    isAlert: remaining < 10
-                ))
+            if let r = rate?["remaining"] as? Int, let l = rate?["limit"] as? Int {
+                await GitHubRateLimitCache.shared.set(token: cacheKey, remaining: r, limit: l)
+                rlEntry = .init(remaining: r, limit: l, date: .now)
             }
+        }
+        if let entry = rlEntry {
+            let pct = entry.limit > 0 ? Double(entry.remaining) / Double(entry.limit) * 100 : 100
+            metrics.append(ServiceMetric(
+                label: "API rate limit",
+                value: "\(entry.remaining) / \(entry.limit)",
+                icon: "gauge.medium",
+                color: pct < 20 ? .red : pct < 50 ? .orange : .green,
+                isAlert: entry.remaining < 10
+            ))
         }
 
         // Authenticated user

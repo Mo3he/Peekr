@@ -15,8 +15,8 @@ struct PortainerIntegration: ServiceIntegration {
         var metrics: [ServiceMetric] = []
         metrics.append(ServiceMetric(label: "Environments", value: "\(endpoints.count)", icon: "server.rack", color: .primary))
 
-        // Fetch containers for each endpoint (first 3)
-        var running = 0, stopped = 0
+        // Fetch containers for each endpoint
+        var running = 0, unhealthy = 0, stopped = 0
         var images: Int? = nil
         var volumes: Int? = nil
         for ep in endpoints {
@@ -25,18 +25,24 @@ struct PortainerIntegration: ServiceIntegration {
             async let imagesResult    = fetchJSON(url: URL(string: "\(base)/api/endpoints/\(epID)/docker/images/json")!, headers: headers)
             async let volumesResult   = fetchJSON(url: URL(string: "\(base)/api/endpoints/\(epID)/docker/volumes")!, headers: headers)
             if let containers = try? await containersResult as? [[String: Any]] {
-                running += containers.filter { ($0["State"] as? String) == "running" }.count
-                stopped += containers.filter { ($0["State"] as? String) != "running" }.count
+                for c in containers {
+                    let state = c["State"] as? String ?? ""
+                    let status = c["Status"] as? String ?? ""
+                    if state == "running" {
+                        if status.contains("unhealthy") { unhealthy += 1 } else { running += 1 }
+                    } else {
+                        stopped += 1
+                    }
+                }
             }
             if let imgs = try? await imagesResult as? [[String: Any]] { images = (images ?? 0) + imgs.count }
             if let vols = try? await volumesResult as? [String: Any],
                let list = vols["Volumes"] as? [[String: Any]] { volumes = (volumes ?? 0) + list.count }
         }
-        if running + stopped > 0 {
+        if running + unhealthy + stopped > 0 {
             metrics.append(ServiceMetric(label: "Running", value: "\(running)", icon: "play.circle.fill", color: .green))
-            if stopped > 0 {
-                metrics.append(ServiceMetric(label: "Stopped", value: "\(stopped)", icon: "stop.circle.fill", color: .red, isAlert: true))
-            }
+            metrics.append(ServiceMetric(label: "Unhealthy", value: "\(unhealthy)", icon: "exclamationmark.circle.fill", color: unhealthy > 0 ? .orange : .secondary, isAlert: unhealthy > 0))
+            metrics.append(ServiceMetric(label: "Stopped", value: "\(stopped)", icon: "stop.circle.fill", color: .secondary))
         }
         if let images { metrics.append(ServiceMetric(label: "Images", value: "\(images)", icon: "photo.stack.fill", color: .secondary)) }
         if let volumes { metrics.append(ServiceMetric(label: "Volumes", value: "\(volumes)", icon: "externaldrive.fill", color: .secondary)) }

@@ -57,15 +57,13 @@ struct HomeAssistantIntegration: ServiceIntegration {
 
             // Unavailable entities as an alert
             let unavailable = states.filter { ($0["state"] as? String) == "unavailable" }.count
-            if unavailable > 0 {
-                metrics.append(ServiceMetric(
-                    label: "Unavailable",
-                    value: "\(unavailable) entities",
-                    icon: "exclamationmark.triangle.fill",
-                    color: .red,
-                    isAlert: true
-                ))
-            }
+            metrics.append(ServiceMetric(
+                label: "Unavailable",
+                value: "\(unavailable) entities",
+                icon: "exclamationmark.triangle.fill",
+                color: unavailable > 0 ? .red : .secondary,
+                isAlert: unavailable > 0
+            ))
 
             // Available updates: filter update.* domain entities where state == "on"
             let pendingUpdates = states.filter { entity in
