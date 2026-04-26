@@ -108,6 +108,17 @@ struct Service: Identifiable, Codable, Hashable {
         "\(scheme.rawValue)://\(host):\(port)"
     }
 
+    /// Label shown in row subtitles. GitHub shows the repo path (owner/repo) when configured;
+    /// everything else shows the full URL with port.
+    var friendlyDisplayURL: String {
+        if serviceType == .github,
+           let repo = username?.trimmingCharacters(in: .whitespaces),
+           !repo.isEmpty, repo.contains("/") {
+            return repo
+        }
+        return displayURL
+    }
+
     var icon: String { customIcon ?? serviceType.icon }
 
     /// Whether this service is only reachable on a local network (private IP or .local hostname).

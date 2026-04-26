@@ -71,13 +71,13 @@ struct ServiceRowView: View {
             Text(service.name)
                 .font(.body.weight(.semibold))
                 .lineLimit(1)
-            if let code = displayCode {
-                Text("HTTP \(code) · \(service.host)")
+            if let code = displayCode, !(200..<300).contains(code) {
+                Text("HTTP \(code) · \(service.friendlyDisplayURL)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             } else {
-                Text(service.displayURL)
+                Text(service.friendlyDisplayURL)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -146,13 +146,13 @@ struct ReorderRowView: View {
                     Text(service.name)
                         .font(.body.weight(.semibold))
                         .lineLimit(1)
-                    if let code = service.httpStatusCode {
-                        Text("HTTP \(code) · \(service.host)")
+                    if let code = service.httpStatusCode, !(200..<300).contains(code) {
+                        Text("HTTP \(code) · \(service.friendlyDisplayURL)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     } else {
-                        Text(service.displayURL)
+                        Text(service.friendlyDisplayURL)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)

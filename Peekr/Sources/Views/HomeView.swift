@@ -24,6 +24,7 @@ struct HomeView: View {
     @State private var showOverallHealth = false
     @State private var reorderMode: ReorderMode = .none
     @State private var isSearchActive = false
+    @FocusState private var searchFocused: Bool
     // scrollPosition removed - List naturally preserves scroll when ForEach identity is stable
     @AppStorage("autoRefreshInterval") private var refreshInterval: Double = 30
 
@@ -33,14 +34,18 @@ struct HomeView: View {
                 .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    if !isSearchActive {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button { isSearchActive = true } label: {
-                                Image(systemName: "magnifyingglass")
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        Button {
+                            isSearchActive.toggle()
+                            if isSearchActive {
+                                searchFocused = true
+                            } else {
+                                vm.searchText = ""
                             }
+                        } label: {
+                            Image(systemName: isSearchActive ? "xmark" : "magnifyingglass")
                         }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
+                        Spacer()
                         Button { showServicePicker = true } label: {
                             Image(systemName: "plus")
                         }
@@ -117,6 +122,30 @@ struct HomeView: View {
             if !network.canReachLocal && vm.services.contains(where: \.isLocalNetwork) {
                 networkBanner
             }
+            if isSearchActive {
+                Section {
+                    HStack {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Search services", text: $vm.searchText)
+                            .focused($searchFocused)
+                            .submitLabel(.search)
+                            .onSubmit { searchFocused = false }
+                        if !vm.searchText.isEmpty {
+                            Button { vm.searchText = "" } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        Button("Cancel") {
+                            isSearchActive = false
+                            vm.searchText = ""
+                            searchFocused = false
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
             if !vm.services.isEmpty {
                 overallStatusSection
             }
@@ -124,11 +153,7 @@ struct HomeView: View {
         }
         .environment(\.editMode, .constant(reorderMode != .none ? .active : .inactive))
         .listStyle(.insetGrouped)
-        .searchable(text: $vm.searchText, isPresented: $isSearchActive, prompt: "Search services")
         .refreshable { vm.refreshAll() }
-        .onChange(of: isSearchActive) { _, active in
-            if !active { vm.searchText = "" }
-        }
     }
 
     // MARK: - Network Banner
@@ -555,7 +580,7 @@ private struct ReorderServicesSection: View {
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(service.name).font(.body.weight(.semibold))
-                Text(service.displayURL).font(.caption).foregroundStyle(.secondary)
+                Text(service.friendlyDisplayURL).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
         }

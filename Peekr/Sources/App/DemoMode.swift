@@ -169,7 +169,7 @@ enum DemoMode {
         }()
         let github: Service = {
             var s = Service(id: uuid(3), name: "Event Engine", host: "api.github.com", port: 443,
-                            scheme: .https, apiKey: "demo", username: "anthropics/event-engine")
+                            scheme: .https, apiKey: "demo", username: "homelab-user/event-engine")
             s.serviceType = .github
             return s
         }()
