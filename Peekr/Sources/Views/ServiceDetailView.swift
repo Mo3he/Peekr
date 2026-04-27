@@ -87,10 +87,16 @@ struct ServiceDetailView: View {
                     Text(effectiveStatus.label)
                         .font(.headline)
                     HStack(spacing: 6) {
-                        Text(service.displayURL)
+                        let usingFailover = live.liveData[serviceID]?.usingFailover == true
+                        Text(usingFailover ? (service.failoverDisplayURL ?? service.displayURL) : service.displayURL)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        if service.isLocalNetwork {
+                        if usingFailover {
+                            Label("Failover", systemImage: "arrow.triangle.2.circlepath")
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                                .labelStyle(.titleAndIcon)
+                        } else if service.isLocalNetwork {
                             Label("Local", systemImage: "wifi")
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)

@@ -1,0 +1,111 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Peekr icon dark">
+      
+    <defs>
+      <linearGradient id="bg-dark" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#2c2c2f"></stop>
+        <stop offset="0.6" stop-color="#1d1d20"></stop>
+        <stop offset="1" stop-color="#101013"></stop>
+      </linearGradient>
+
+      <linearGradient id="glass-dark" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="rgba(255,255,255,0.22)"></stop>
+        <stop offset="0.5" stop-color="rgba(255,255,255,0.08)"></stop>
+        <stop offset="1" stop-color="rgba(255,255,255,0.14)"></stop>
+      </linearGradient>
+
+      <linearGradient id="edge-dark" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="rgba(255,255,255,0.60)" stop-opacity="0.95"></stop>
+        <stop offset="1" stop-color="rgba(255,255,255,0.60)" stop-opacity="0.4"></stop>
+      </linearGradient>
+
+      <linearGradient id="hi-dark" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffffff" stop-opacity="0.85"></stop>
+        <stop offset="1" stop-color="#ffffff" stop-opacity="0"></stop>
+      </linearGradient>
+
+      
+      <filter id="drop-dark" x="-20%" y="-20%" width="140%" height="160%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="4"></feGaussianBlur>
+        <feOffset dx="0" dy="4" result="off"></feOffset>
+        <feComponentTransfer in="off" result="sh">
+          <feFuncA type="linear" slope="0.3"></feFuncA>
+        </feComponentTransfer>
+        <feMerge>
+          <feMergeNode in="sh"></feMergeNode>
+          <feMergeNode in="SourceGraphic"></feMergeNode>
+        </feMerge>
+      </filter>
+
+      <filter id="glow-dark" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="14"></feGaussianBlur>
+      </filter>
+
+      
+        <radialGradient id="dot-dark-0" cx="0.35" cy="0.30" r="0.85">
+          <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"></stop>
+          <stop offset="0.25" stop-color="#34c759"></stop>
+          <stop offset="1" stop-color="#34c759"></stop>
+        </radialGradient>
+      
+        <radialGradient id="dot-dark-1" cx="0.35" cy="0.30" r="0.85">
+          <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"></stop>
+          <stop offset="0.25" stop-color="#ffcc00"></stop>
+          <stop offset="1" stop-color="#ffcc00"></stop>
+        </radialGradient>
+      
+        <radialGradient id="dot-dark-2" cx="0.35" cy="0.30" r="0.85">
+          <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"></stop>
+          <stop offset="0.25" stop-color="#ff453a"></stop>
+          <stop offset="1" stop-color="#ff453a"></stop>
+        </radialGradient>
+      
+
+      <pattern id="grid-dark" width="64" height="64" patternUnits="userSpaceOnUse">
+        <path d="M 64 0 L 0 0 0 64" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"></path>
+      </pattern>
+    </defs>
+  
+      <rect width="1024" height="1024" fill="url(#bg-dark)"></rect>
+      
+      <g filter="url(#drop-dark)">
+        <rect x="182" y="251" width="660" height="130" rx="39" ry="39" fill="url(#glass-dark)" stroke="rgba(255,255,255,0.60)" stroke-opacity="0.55" stroke-width="2"></rect>
+        <rect x="188" y="255" width="648" height="41.6" rx="27.299999999999997" fill="url(#hi-dark)" opacity="0"></rect>
+        
+      <rect x="448" y="297" width="56" height="38" rx="6" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect>
+      <rect x="520" y="297" width="56" height="38" rx="6" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect>
+    
+      <circle cx="248" cy="316" r="41.989999999999995" fill="#34c759" opacity="0.35" filter="url(#glow-dark)"></circle>
+      <circle cx="248" cy="316" r="22.099999999999998" fill="url(#dot-dark-0)" stroke="rgba(0,0,0,0.25)" stroke-width="1.2"></circle>
+      <ellipse cx="241.37" cy="307.16" rx="9.944999999999999" ry="5.5249999999999995" fill="#ffffff" opacity="0.65"></ellipse>
+    
+      </g>
+    
+      
+      <g filter="url(#drop-dark)">
+        <rect x="182" y="397" width="660" height="130" rx="39" ry="39" fill="url(#glass-dark)" stroke="rgba(255,255,255,0.60)" stroke-opacity="0.55" stroke-width="2"></rect>
+        <rect x="188" y="401" width="648" height="41.6" rx="27.299999999999997" fill="url(#hi-dark)" opacity="0"></rect>
+        
+      <circle cx="248" cy="462" r="41.989999999999995" fill="#ffcc00" opacity="0.35" filter="url(#glow-dark)"></circle>
+      <circle cx="248" cy="462" r="22.099999999999998" fill="url(#dot-dark-1)" stroke="rgba(0,0,0,0.25)" stroke-width="1.2"></circle>
+      <ellipse cx="241.37" cy="453.16" rx="9.944999999999999" ry="5.5249999999999995" fill="#ffffff" opacity="0.65"></ellipse>
+    <rect x="327.2" y="446" width="42" height="32" rx="4" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="345.2" y="436" width="6" height="4" rx="1" fill="rgba(255,255,255,0.55)" opacity="0.45"></rect><rect x="377.2" y="446" width="42" height="32" rx="4" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="395.2" y="436" width="6" height="4" rx="1" fill="rgba(255,255,255,0.55)" opacity="0.45"></rect><rect x="427.2" y="446" width="42" height="32" rx="4" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="445.2" y="436" width="6" height="4" rx="1" fill="rgba(255,255,255,0.55)" opacity="0.45"></rect><rect x="477.2" y="446" width="42" height="32" rx="4" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="495.2" y="436" width="6" height="4" rx="1" fill="rgba(255,255,255,0.55)" opacity="0.45"></rect><rect x="527.2" y="446" width="42" height="32" rx="4" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="545.2" y="436" width="6" height="4" rx="1" fill="rgba(255,255,255,0.55)" opacity="0.45"></rect><rect x="577.2" y="446" width="42" height="32" rx="4" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="595.2" y="436" width="6" height="4" rx="1" fill="rgba(255,255,255,0.55)" opacity="0.45"></rect><rect x="627.2" y="446" width="42" height="32" rx="4" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="645.2" y="436" width="6" height="4" rx="1" fill="rgba(255,255,255,0.55)" opacity="0.45"></rect><rect x="677.2" y="446" width="42" height="32" rx="4" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="695.2" y="436" width="6" height="4" rx="1" fill="rgba(255,255,255,0.55)" opacity="0.45"></rect>
+      </g>
+    
+      
+      <g filter="url(#drop-dark)">
+        <rect x="182" y="543" width="660" height="230" rx="69" ry="69" fill="url(#glass-dark)" stroke="rgba(255,255,255,0.60)" stroke-opacity="0.55" stroke-width="2"></rect>
+        <rect x="188" y="547" width="648" height="73.60000000000001" rx="48.3" fill="url(#hi-dark)" opacity="0"></rect>
+        
+      <circle cx="366.8" cy="616.6" r="22" fill="none" stroke="rgba(255,255,255,0.55)" stroke-opacity="0.55" stroke-width="3"></circle>
+      <rect x="364.3" y="602.6" width="5" height="14" rx="2.5" fill="rgba(255,255,255,0.55)" opacity="0.7"></rect>
+    
+      <rect x="340.4" y="685.6" width="198" height="6" rx="3" fill="rgba(255,255,255,0.55)" opacity="0.4"></rect>
+      <rect x="340.4" y="713.2" width="118.8" height="4" rx="2" fill="rgba(255,255,255,0.55)" opacity="0.35"></rect>
+    <rect x="591.2" y="593.6" width="184.8" height="4" rx="2" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="591.2" y="607.6" width="184.8" height="4" rx="2" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="591.2" y="621.6" width="184.8" height="4" rx="2" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="591.2" y="635.6" width="184.8" height="4" rx="2" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="591.2" y="649.6" width="184.8" height="4" rx="2" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="591.2" y="663.6" width="184.8" height="4" rx="2" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="591.2" y="677.6" width="184.8" height="4" rx="2" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="591.2" y="691.6" width="184.8" height="4" rx="2" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect><rect x="591.2" y="705.6" width="184.8" height="4" rx="2" fill="rgba(255,255,255,0.55)" opacity="0.55"></rect>
+      <circle cx="248" cy="658" r="37.05" fill="#ff453a" opacity="0.35" filter="url(#glow-dark)"></circle>
+      <circle cx="248" cy="658" r="19.5" fill="url(#dot-dark-2)" stroke="rgba(0,0,0,0.25)" stroke-width="1.2"></circle>
+      <ellipse cx="242.15" cy="650.2" rx="8.775" ry="4.875" fill="#ffffff" opacity="0.65"></ellipse>
+    
+      </g>
+    
+    </svg>

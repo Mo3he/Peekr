@@ -1,8 +1,10 @@
 import Foundation
 import UserNotifications
+import os
 
 enum NotificationService {
     static func postOfflineAlert(for service: Service) async {
+        AppLogger.notify.info("Posting offline alert for \(service.name, privacy: .public)")
         let content = UNMutableNotificationContent()
         content.title = "\(service.name) is offline"
         content.body = "\(service.displayURL) is not responding."
@@ -22,6 +24,7 @@ enum NotificationService {
     }
 
     static func postRecoveryAlert(for service: Service) async {
+        AppLogger.notify.info("Posting recovery alert for \(service.name, privacy: .public)")
         // Cancel any pending offline alert for this service
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["offline-\(service.id.uuidString)"])
 

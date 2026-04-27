@@ -11,6 +11,10 @@ struct ServiceRowView: View {
     private var displayLatency: Double?     { liveEntry?.latencyMs      ?? service.latencyMs }
     private var displayCode: Int?           { liveEntry?.httpStatusCode  ?? service.httpStatusCode }
     private var displayLastChecked: Date?   { liveEntry?.lastChecked     ?? service.lastChecked }
+    private var displayURL: String {
+        if liveEntry?.usingFailover == true, let fu = service.failoverDisplayURL { return fu }
+        return service.friendlyDisplayURL
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -72,12 +76,12 @@ struct ServiceRowView: View {
                 .font(.body.weight(.semibold))
                 .lineLimit(1)
             if let code = displayCode, !(200..<300).contains(code) {
-                Text("HTTP \(code) · \(service.friendlyDisplayURL)")
+                Text("HTTP \(code) · \(displayURL)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             } else {
-                Text(service.friendlyDisplayURL)
+                Text(displayURL)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import Combine
+import Darwin
 
 /// Monitors network path changes and probes whether local-network services are
 /// reachable on the current WiFi. No entitlements required.
@@ -23,15 +24,26 @@ final class NetworkMonitor: ObservableObject {
     @Published private(set) var isProbing = false
     /// User tapped "Check anyway" - stays true until the next network change.
     @Published var userOverride = false
+    /// Current device IPv4 address on the active WiFi interface. Updated on each network change.
+    @Published private(set) var currentLocalIP: String? = nil
 
     /// Whether we expect local-network services to be reachable right now.
     var canReachLocal: Bool {
         if userOverride { return true }
         if likelyVPN { return true }
         if !isOnWiFi { return false }
-        // If we haven't probed yet, assume reachable (first launch / probe in progress)
-        guard let home = isHomeNetwork else { return true }
+        if isProbing { return false }
+        guard let home = isHomeNetwork else { return false }
         return home
+    }
+
+    /// Whether a specific service should be checked right now.
+    func canReachService(_ service: Service) -> Bool {
+        guard service.isLocalNetwork else { return true }
+        // A configured failover host means the service may be reachable via VPN even when
+        // the primary local address is unreachable — always attempt so PingService can fall back.
+        if let fh = service.failoverHost, !fh.isEmpty { return true }
+        return canReachLocal
     }
 
     private let monitor = NWPathMonitor()
@@ -54,9 +66,11 @@ final class NetworkMonitor: ObservableObject {
                 }
 
                 if self.isOnWiFi {
+                    self.currentLocalIP = Self.currentWiFiIPv4()
                     await self.probeLocalReachability()
                 } else {
                     self.isHomeNetwork = nil
+                    self.currentLocalIP = nil
                 }
             }
         }
@@ -65,6 +79,29 @@ final class NetworkMonitor: ObservableObject {
 
     deinit {
         monitor.cancel()
+    }
+
+    // MARK: - Device IP
+
+    /// Returns the IPv4 address on the primary WiFi interface (en0) or wired (en1).
+    private static func currentWiFiIPv4() -> String? {
+        var ifaddr: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddr) == 0, let first = ifaddr else { return nil }
+        defer { freeifaddrs(first) }
+        var ptr: UnsafeMutablePointer<ifaddrs>? = first
+        while let ifa = ptr {
+            defer { ptr = ifa.pointee.ifa_next }
+            let name = String(cString: ifa.pointee.ifa_name)
+            guard (name == "en0" || name == "en1"),
+                  let addr = ifa.pointee.ifa_addr,
+                  addr.pointee.sa_family == UInt8(AF_INET) else { continue }
+            var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            guard getnameinfo(addr, socklen_t(addr.pointee.sa_len),
+                              &hostname, socklen_t(hostname.count),
+                              nil, 0, NI_NUMERICHOST) == 0 else { continue }
+            return String(cString: hostname)
+        }
+        return nil
     }
 
     /// Re-run the local reachability probe (e.g. after user taps "Check anyway").

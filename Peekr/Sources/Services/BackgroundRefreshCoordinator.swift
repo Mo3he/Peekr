@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import os
 
 /// Single source of truth for "refresh every service and update both the persisted store
 /// and the live UI cache." Used by the BG task path so live state stays consistent with
@@ -22,101 +23,124 @@ enum BackgroundRefreshCoordinator {
         let services = store.services
         guard !services.isEmpty else { return }
 
+        AppLogger.refresh.debug("Background refresh started for \(services.count) service(s)")
+
         var newLiveData = live.liveData
         var newMetrics  = live.metrics
         var newErrors   = live.metricsError
         var pendingStoreUpdates: [Service] = []
 
+        // Pre-filter: determine which services to check (synchronous, no I/O).
+        var toCheck: [(Service, ServiceStatus)] = []
         for service in services {
             guard !Task.isCancelled else { break }
-            if !network.canReachLocal && service.isLocalNetwork { continue }
-
+            if !network.canReachService(service) { continue }
             let previousStatus = live.liveData[service.id]?.status ?? service.status
-            var liveEntry = ServiceLiveData(lastChecked: Date())
+            toCheck.append((service, previousStatus))
+        }
 
-            if service.serviceType.isCloudService {
-                let integration = IntegrationProvider.integration(for: service)
-                do {
-                    var fetched = try await integration.fetchMetrics(service: service)
-                    fetched = applyMetricOrder(fetched, serviceID: service.id)
-                    liveEntry.status = fetched.isEmpty ? .degraded : .online
+        // Run all checks concurrently so a slow/timing-out service doesn't block others.
+        // @MainActor is explicit here because BackgroundRefreshCoordinator has no `self`
+        // for the compiler to infer isolation from — unlike HomeViewModel's task group.
+        await withTaskGroup(of: Void.self) { group in
+            for (service, previousStatus) in toCheck {
+                group.addTask { @MainActor in
+                    var liveEntry = ServiceLiveData(lastChecked: Date())
+
+                    if service.serviceType.isCloudService {
+                        let integration = IntegrationProvider.integration(for: service)
+                        do {
+                            var fetched = try await integration.fetchMetrics(service: service)
+                            fetched = applyMetricOrder(fetched, serviceID: service.id)
+                            liveEntry.status = fetched.isEmpty ? .degraded : .online
+                            AppLogger.refresh.info("[BG] \(service.name, privacy: .public) (cloud) -> \(liveEntry.status.rawValue, privacy: .public)")
+                            newLiveData[service.id] = liveEntry
+                            newMetrics[service.id]  = fetched
+                            newErrors.removeValue(forKey: service.id)
+                            uptimeStore.record(serviceID: service.id, status: liveEntry.status)
+                            pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
+                            eventStore.recordTransition(previousStatus: previousStatus,
+                                                        newStatus: liveEntry.status,
+                                                        service: service)
+                        } catch IntegrationError.transient(let retryAfter) {
+                            AppLogger.refresh.info("[BG] \(service.name, privacy: .public) (cloud) rate-limited, retryAfter=\(retryAfter ?? 0)")
+                            newErrors[service.id] = IntegrationError.transient(retryAfter: retryAfter).localizedDescription
+                        } catch {
+                            AppLogger.refresh.error("[BG] \(service.name, privacy: .public) (cloud) error: \(error.localizedDescription, privacy: .public)")
+                            liveEntry.status = .degraded
+                            newLiveData[service.id] = liveEntry
+                            newMetrics[service.id]  = []
+                            newErrors[service.id]   = error.localizedDescription
+                            uptimeStore.record(serviceID: service.id, status: liveEntry.status)
+                            pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
+                        }
+                        return
+                    }
+
+                    do {
+                        let result = try await PingService.shared.check(service)
+                        liveEntry.latencyMs      = result.latencyMs
+                        liveEntry.httpStatusCode = result.httpStatusCode
+                        liveEntry.usingFailover  = result.usedFailover
+                        let baseStatus: ServiceStatus = result.httpStatusCode.map {
+                            (200..<400).contains($0) || $0 == 401 || $0 == 403 ? .online : .degraded
+                        } ?? .online
+                        if baseStatus == .online,
+                           let threshold = service.latencyDegradedMs, result.latencyMs > threshold {
+                            liveEntry.status = .degraded
+                        } else {
+                            liveEntry.status = baseStatus
+                        }
+                        AppLogger.refresh.info("[BG] \(service.name, privacy: .public) -> \(liveEntry.status.rawValue, privacy: .public) (\(Int(result.latencyMs))ms)")
+                    } catch {
+                        // If the network probe says we're not on the local network, preserve
+                        // last-known status instead of marking offline.
+                        if service.isLocalNetwork && !network.canReachLocal { return }
+                        AppLogger.refresh.error("[BG] \(service.name, privacy: .public) ping failed: \(error.localizedDescription, privacy: .public)")
+                        liveEntry.status = .offline
+                        newLiveData[service.id] = liveEntry
+                        newMetrics[service.id]  = []
+                        newErrors.removeValue(forKey: service.id)
+                        historyStore.record(serviceID: service.id, status: .offline, latencyMs: nil)
+                        uptimeStore.record(serviceID: service.id, status: .offline)
+                        pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
+                        eventStore.recordTransition(previousStatus: previousStatus,
+                                                    newStatus: .offline,
+                                                    service: service)
+                        let globalOffline = UserDefaults.standard.object(forKey: "globalOfflineNotificationsEnabled") as? Bool ?? true
+                        if (previousStatus == .online || previousStatus == .degraded)
+                           && service.notificationsEnabled && globalOffline {
+                            await NotificationService.postOfflineAlert(for: service)
+                        }
+                        return
+                    }
+
                     newLiveData[service.id] = liveEntry
-                    newMetrics[service.id]  = fetched
-                    newErrors.removeValue(forKey: service.id)
+                    historyStore.record(serviceID: service.id, status: liveEntry.status, latencyMs: liveEntry.latencyMs)
                     uptimeStore.record(serviceID: service.id, status: liveEntry.status)
                     pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
                     eventStore.recordTransition(previousStatus: previousStatus,
                                                 newStatus: liveEntry.status,
                                                 service: service)
-                } catch IntegrationError.transient(let retryAfter) {
-                    newErrors[service.id] = IntegrationError.transient(retryAfter: retryAfter).localizedDescription
-                } catch {
-                    liveEntry.status = .degraded
-                    newLiveData[service.id] = liveEntry
-                    newMetrics[service.id]  = []
-                    newErrors[service.id]   = error.localizedDescription
-                    uptimeStore.record(serviceID: service.id, status: liveEntry.status)
-                    pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
-                }
-                continue
-            }
+                    let globalOffline = UserDefaults.standard.object(forKey: "globalOfflineNotificationsEnabled") as? Bool ?? true
+                    if previousStatus == .offline && (liveEntry.status == .online || liveEntry.status == .degraded)
+                       && service.notificationsEnabled && globalOffline {
+                        await NotificationService.postRecoveryAlert(for: service)
+                    }
 
-            do {
-                let result = try await PingService.shared.check(service)
-                liveEntry.latencyMs      = result.latencyMs
-                liveEntry.httpStatusCode = result.httpStatusCode
-                let baseStatus: ServiceStatus = result.httpStatusCode.map {
-                    (200..<400).contains($0) || $0 == 401 || $0 == 403 ? .online : .degraded
-                } ?? .online
-                if baseStatus == .online,
-                   let threshold = service.latencyDegradedMs, result.latencyMs > threshold {
-                    liveEntry.status = .degraded
-                } else {
-                    liveEntry.status = baseStatus
+                    let integration = IntegrationProvider.integration(for: service)
+                    do {
+                        var fetched = try await integration.fetchMetrics(service: service)
+                        fetched = applyMetricOrder(fetched, serviceID: service.id)
+                        newMetrics[service.id] = fetched
+                        newErrors.removeValue(forKey: service.id)
+                    } catch IntegrationError.transient(let retryAfter) {
+                        newErrors[service.id] = IntegrationError.transient(retryAfter: retryAfter).localizedDescription
+                    } catch {
+                        newMetrics[service.id] = []
+                        newErrors[service.id]  = error.localizedDescription
+                    }
                 }
-            } catch {
-                liveEntry.status = .offline
-                newLiveData[service.id] = liveEntry
-                newMetrics[service.id]  = []
-                newErrors.removeValue(forKey: service.id)
-                historyStore.record(serviceID: service.id, status: .offline, latencyMs: nil)
-                uptimeStore.record(serviceID: service.id, status: .offline)
-                pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
-                eventStore.recordTransition(previousStatus: previousStatus,
-                                            newStatus: .offline,
-                                            service: service)
-                let globalOffline = UserDefaults.standard.object(forKey: "globalOfflineNotificationsEnabled") as? Bool ?? true
-                if (previousStatus == .online || previousStatus == .degraded)
-                   && service.notificationsEnabled && globalOffline {
-                    await NotificationService.postOfflineAlert(for: service)
-                }
-                continue
-            }
-
-            newLiveData[service.id] = liveEntry
-            historyStore.record(serviceID: service.id, status: liveEntry.status, latencyMs: liveEntry.latencyMs)
-            uptimeStore.record(serviceID: service.id, status: liveEntry.status)
-            pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))
-            eventStore.recordTransition(previousStatus: previousStatus,
-                                        newStatus: liveEntry.status,
-                                        service: service)
-            let globalOffline = UserDefaults.standard.object(forKey: "globalOfflineNotificationsEnabled") as? Bool ?? true
-            if previousStatus == .offline && (liveEntry.status == .online || liveEntry.status == .degraded)
-               && service.notificationsEnabled && globalOffline {
-                await NotificationService.postRecoveryAlert(for: service)
-            }
-
-            let integration = IntegrationProvider.integration(for: service)
-            do {
-                var fetched = try await integration.fetchMetrics(service: service)
-                fetched = applyMetricOrder(fetched, serviceID: service.id)
-                newMetrics[service.id] = fetched
-                newErrors.removeValue(forKey: service.id)
-            } catch IntegrationError.transient(let retryAfter) {
-                newErrors[service.id] = IntegrationError.transient(retryAfter: retryAfter).localizedDescription
-            } catch {
-                newMetrics[service.id] = []
-                newErrors[service.id]  = error.localizedDescription
             }
         }
 
@@ -125,6 +149,7 @@ enum BackgroundRefreshCoordinator {
             store.batchUpdate(pendingStoreUpdates)
         }
         live.applyBatch(liveData: newLiveData, metrics: newMetrics, errors: newErrors)
+        AppLogger.refresh.debug("Background refresh complete — \(pendingStoreUpdates.count) service(s) updated")
     }
 
     private static func applyMetricOrder(_ fetched: [ServiceMetric], serviceID: UUID) -> [ServiceMetric] {

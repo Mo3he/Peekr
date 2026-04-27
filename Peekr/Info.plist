@@ -35,6 +35,7 @@
 	<array>
 		<string>com.mblieden.peekr.refresh</string>
 		<string>com.mblieden.peekr.summaryNotification</string>
+		<string>com.mblieden.peekr.processing</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

@@ -1,9 +1,11 @@
 import Foundation
 import Network
+import os
 
 struct CheckResult {
     let latencyMs: Double
     let httpStatusCode: Int?
+    var usedFailover: Bool = false
 }
 
 actor PingService {
@@ -14,24 +16,56 @@ actor PingService {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 5
         config.timeoutIntervalForResource = 5
-        // Follow redirects so e.g. http→https services report correctly.
-        // Delegate only trusts hosts the user has opted into for self-signed certs.
+        return URLSession(configuration: config,
+                          delegate: InsecureTrustRegistry.shared,
+                          delegateQueue: nil)
+    }()
+
+    // Separate session for failover attempts so timed-out primary connections
+    // cannot contaminate the failover's connection pool.
+    private let failoverSession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 5
+        config.timeoutIntervalForResource = 5
         return URLSession(configuration: config,
                           delegate: InsecureTrustRegistry.shared,
                           delegateQueue: nil)
     }()
 
     func check(_ service: Service) async throws -> CheckResult {
+        AppLogger.ping.debug("Checking \(service.name, privacy: .public) (\(service.host, privacy: .public))")
+        do {
+            let result = try await doCheck(service, using: session)
+            AppLogger.ping.info("\(service.name, privacy: .public) OK — \(Int(result.latencyMs))ms HTTP \(result.httpStatusCode.map(String.init) ?? "n/a", privacy: .public)")
+            return result
+        } catch {
+            guard let failover = service.failoverHost, !failover.trimmingCharacters(in: .whitespaces).isEmpty else {
+                AppLogger.ping.error("\(service.name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+                throw error
+            }
+            AppLogger.ping.info("\(service.name, privacy: .public) primary failed, trying failover host")
+            var alt = service
+            alt.host = failover.trimmingCharacters(in: .whitespaces)
+            var result = try await doCheck(alt, using: failoverSession)
+            result.usedFailover = true
+            AppLogger.ping.info("\(service.name, privacy: .public) OK via failover — \(Int(result.latencyMs))ms HTTP \(result.httpStatusCode.map(String.init) ?? "n/a", privacy: .public)")
+            return result
+        }
+    }
+
+    private func doCheck(_ service: Service, using session: URLSession) async throws -> CheckResult {
         if service.serviceType.prefersTCPPing || !service.scheme.isHTTP {
+            AppLogger.ping.debug("\(service.name, privacy: .public) using TCP check")
             let ms = try await tcpCheck(host: service.host, port: service.port)
             return CheckResult(latencyMs: ms, httpStatusCode: nil)
         }
-        return try await httpCheck(service)
+        AppLogger.ping.debug("\(service.name, privacy: .public) using HTTP check")
+        return try await httpCheck(service, using: session)
     }
 
     // MARK: - HTTP
 
-    private func httpCheck(_ service: Service) async throws -> CheckResult {
+    private func httpCheck(_ service: Service, using session: URLSession) async throws -> CheckResult {
         guard let url = service.pingURL else { throw CheckError.invalidURL }
         let totalBudget: TimeInterval = 5
         let start = Date()

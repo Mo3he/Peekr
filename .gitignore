@@ -44,3 +44,9 @@ Podfile.lock
 # App Store screenshot raw captures (PNGs are intermediate; final JPEGs are committed).
 # See Screenshots/SNAPSHOT_WORKFLOW.md
 Screenshots/sim*/
+
+# Python virtual environment (screenshot tooling)
+.venv/
+
+# Design asset backups (binary PNGs, kept locally only)
+design/icon-backups/

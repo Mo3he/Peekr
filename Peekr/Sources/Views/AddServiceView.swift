@@ -25,6 +25,8 @@ struct AddServiceView: View {
     @State private var allowSelfSignedCert: Bool
     @State private var customPingPath: String
     @State private var latencyDegradedMs: String
+    @State private var failoverHost: String
+    @State private var homeNetwork: String
 
     private static let intervalOptions: [(label: String, value: Double)] = [
         ("Default (global)", 0),
@@ -63,6 +65,8 @@ struct AddServiceView: View {
         _allowSelfSignedCert  = State(initialValue: existing?.allowSelfSignedCert ?? false)
         _customPingPath       = State(initialValue: existing?.customPingPath ?? "")
         _latencyDegradedMs    = State(initialValue: existing?.latencyDegradedMs.map { String(Int($0)) } ?? "")
+        _failoverHost         = State(initialValue: existing?.failoverHost ?? "")
+        _homeNetwork          = State(initialValue: existing?.homeNetwork ?? "")
         _customIcon           = State(initialValue: existing?.customIcon ?? existing.map { $0.serviceType.icon } ?? serviceType?.icon ?? "server.rack")
     }
 
@@ -250,6 +254,17 @@ struct AddServiceView: View {
             }
         }
 
+        Section {
+            TextField("Failover host (e.g. VPN address)", text: $failoverHost)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+        } header: {
+            Text("Network")
+        } footer: {
+            Text("Failover host is tried when the primary is unreachable (useful for VPN or Tailscale addresses).")
+        }
+
         if scheme == .https {
             Section {
                 Toggle("Allow self-signed certificate", isOn: $allowSelfSignedCert)
@@ -417,7 +432,11 @@ struct AddServiceView: View {
         let trimmedPath = customPingPath.trimmingCharacters(in: .whitespaces)
         service.customPingPath = scheme.isHTTP && !trimmedPath.isEmpty ? trimmedPath : nil
         service.latencyDegradedMs = Double(latencyDegradedMs).flatMap { $0 > 0 ? $0 : nil }
-        service.customIcon = customIcon != effectiveType.icon ? customIcon : nil
+        service.customIcon   = customIcon != effectiveType.icon ? customIcon : nil
+        let trimmedFailover  = failoverHost.trimmingCharacters(in: .whitespaces)
+        service.failoverHost = trimmedFailover.isEmpty ? nil : trimmedFailover
+        let trimmedSubnet    = homeNetwork.trimmingCharacters(in: .whitespaces)
+        service.homeNetwork  = trimmedSubnet.isEmpty ? nil : trimmedSubnet
         onSave(service)
         dismiss()
     }

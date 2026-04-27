@@ -448,10 +448,12 @@ private struct OverallStatusSection: View {
     private var overallHealth: ServiceStatus {
         if vm.services.isEmpty { return .unknown }
         if vm.isRefreshing { return .checking }
-        let statuses = vm.services.map { live.liveData[$0.id]?.status ?? $0.status }
-        if statuses.allSatisfy({ $0 == .online }) { return .online }
-        if statuses.contains(.offline) { return .offline }
-        if statuses.contains(.degraded) { return .degraded }
+        let statuses = vm.services.map { live.effectiveStatus(for: $0) }
+        let known = statuses.filter { $0 != .unknown && $0 != .checking }
+        guard !known.isEmpty else { return .unknown }
+        if known.allSatisfy({ $0 == .online }) { return .online }
+        if known.contains(.offline) { return .offline }
+        if known.contains(.degraded) { return .degraded }
         return .unknown
     }
 

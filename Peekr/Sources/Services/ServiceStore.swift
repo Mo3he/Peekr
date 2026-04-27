@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import os
 
 /// Persists service metadata to an App Group UserDefaults container (shared with the widget)
 /// and syncs it via iCloud KV store. Credentials are never synced - they stay in the local Keychain.
@@ -46,17 +47,24 @@ final class ServiceStore: ObservableObject {
     }
 
     func add(_ service: Service) {
+        AppLogger.store.debug("Adding service: \(service.name, privacy: .public)")
         services.append(service)
         save()
     }
 
     func remove(at offsets: IndexSet) {
-        for idx in offsets { deleteCredentials(for: services[idx].id) }
+        for idx in offsets {
+            AppLogger.store.debug("Removing service: \(self.services[idx].name, privacy: .public)")
+            deleteCredentials(for: services[idx].id)
+        }
         services.remove(atOffsets: offsets)
         save()
     }
 
     func remove(id: UUID) {
+        if let svc = services.first(where: { $0.id == id }) {
+            AppLogger.store.debug("Removing service by id: \(svc.name, privacy: .public)")
+        }
         deleteCredentials(for: id)
         services.removeAll { $0.id == id }
         save()
@@ -103,6 +111,7 @@ final class ServiceStore: ObservableObject {
     // MARK: - Persistence
 
     private func save() {
+        AppLogger.store.debug("Saving \(self.services.count) service(s)")
         // Strip credentials before writing; push them to Keychain instead.
         let sanitized = services.map { s -> Service in
             saveCredentials(for: s)
@@ -176,6 +185,7 @@ final class ServiceStore: ObservableObject {
             let data = defaults.data(forKey: key),
             let decoded = try? decoder.decode([Service].self, from: data)
         else {
+            AppLogger.store.info("No persisted services found, loading sample data")
             services = Self.sampleServices
             // Keep the trust registry in sync even on the empty path so it never lags
             // behind `services` on a code path that skips `save()`.
@@ -197,6 +207,7 @@ final class ServiceStore: ObservableObject {
                          ?? s.password
             return copy
         }
+        AppLogger.store.info("Loaded \(self.services.count) service(s) from storage")
         // Persist immediately so any migrated credentials land in the new Keychain format
         // and are removed from UserDefaults.
         save()

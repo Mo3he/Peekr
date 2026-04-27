@@ -41,6 +41,7 @@ private final class NotificationResponseHandler: NSObject, UNUserNotificationCen
 @main
 struct PeekrApp: App {
     private let bgTaskID = "com.mblieden.peekr.refresh"
+    private let bgProcessingTaskID = "com.mblieden.peekr.processing"
     private let notifDelegate = NotificationResponseHandler()
 
     /// One HomeViewModel for the whole app. Injected into every Scene so iPhone, iPad,
@@ -63,6 +64,10 @@ struct PeekrApp: App {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: bgTaskID, using: nil) { task in
             guard let refreshTask = task as? BGAppRefreshTask else { return }
             Self.handleBackgroundRefresh(task: refreshTask)
+        }
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: bgProcessingTaskID, using: nil) { task in
+            guard let processingTask = task as? BGProcessingTask else { return }
+            Self.handleBackgroundProcessing(task: processingTask)
         }
         // Request notification permission on first launch - non-blocking
         if !DemoMode.isEnabled {
@@ -110,6 +115,7 @@ struct PeekrApp: App {
 
     private func scheduleBackgroundRefresh() {
         Self.scheduleBackgroundRefresh(taskID: bgTaskID)
+        Self.scheduleBackgroundProcessing(taskID: bgProcessingTaskID)
     }
 
     private static func scheduleBackgroundRefresh(taskID: String) {
@@ -120,6 +126,17 @@ struct PeekrApp: App {
         try? BGTaskScheduler.shared.submit(request)
     }
 
+    // Schedules a BGProcessingTask for reliable overnight refresh (runs on charger/WiFi).
+    // The system is far more likely to honor this when the device is charging overnight,
+    // filling the gaps left by BGAppRefreshTask's aggressive throttling.
+    private static func scheduleBackgroundProcessing(taskID: String) {
+        let request = BGProcessingTaskRequest(identifier: taskID)
+        request.requiresNetworkConnectivity = true
+        request.requiresExternalPower = false
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 3600)
+        try? BGTaskScheduler.shared.submit(request)
+    }
+
     private static func handleBackgroundRefresh(task: BGAppRefreshTask) {
         // Reschedule the next task FIRST so we don't miss the next slot if the work
         // takes the whole budget or hits the expiration handler.
@@ -127,6 +144,22 @@ struct PeekrApp: App {
 
         // Single Task owns the work. Set expirationHandler before any await to ensure
         // the system can cancel cleanly even if the runtime expires the task immediately.
+        let work = Task<Bool, Never> {
+            await BackgroundRefreshCoordinator.refreshAll()
+            return !Task.isCancelled
+        }
+
+        task.expirationHandler = { work.cancel() }
+
+        Task {
+            let success = await work.value
+            task.setTaskCompleted(success: success)
+        }
+    }
+
+    private static func handleBackgroundProcessing(task: BGProcessingTask) {
+        scheduleBackgroundProcessing(taskID: task.identifier)
+
         let work = Task<Bool, Never> {
             await BackgroundRefreshCoordinator.refreshAll()
             return !Task.isCancelled

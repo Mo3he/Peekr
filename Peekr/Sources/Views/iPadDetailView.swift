@@ -80,8 +80,13 @@ struct iPadDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(effectiveStatus.label).font(.headline)
                     HStack(spacing: 6) {
-                        Text(service.displayURL).font(.caption).foregroundStyle(.secondary)
-                        if service.isLocalNetwork {
+                        let usingFailover = live.liveData[serviceID]?.usingFailover == true
+                        Text(usingFailover ? (service.failoverDisplayURL ?? service.displayURL) : service.displayURL)
+                            .font(.caption).foregroundStyle(.secondary)
+                        if usingFailover {
+                            Label("Failover", systemImage: "arrow.triangle.2.circlepath")
+                                .font(.caption2).foregroundStyle(.orange)
+                        } else if service.isLocalNetwork {
                             Label("Local", systemImage: "wifi")
                                 .font(.caption2).foregroundStyle(.tertiary)
                         }

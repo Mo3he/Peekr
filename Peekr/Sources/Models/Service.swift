@@ -27,6 +27,11 @@ struct Service: Identifiable, Codable, Hashable {
     var latencyDegradedMs: Double?
     /// User-chosen SF Symbol name override. nil = use serviceType default.
     var customIcon: String?
+    /// Fallback host (e.g. VPN address) tried if the primary host is unreachable.
+    var failoverHost: String?
+    /// Subnet prefix this service lives on (e.g. "192.168.1"). Only checked when device
+    /// IP matches this prefix; ignored if nil (any local network).
+    var homeNetwork: String?
 
     // Explicit CodingKeys so that adding new optional fields never breaks
     // decoding of older stored data (missing keys decode as nil).
@@ -36,7 +41,7 @@ struct Service: Identifiable, Codable, Hashable {
         case status, lastChecked, latencyMs, httpStatusCode
         case checkInterval, notificationsEnabled
         case allowSelfSignedCert, customPingPath, latencyDegradedMs
-        case customIcon
+        case customIcon, failoverHost, homeNetwork
     }
 
     init(id: UUID = UUID(), name: String, host: String, port: Int, scheme: ServiceScheme = .http,
@@ -83,6 +88,8 @@ struct Service: Identifiable, Codable, Hashable {
         customPingPath       = try c.decodeIfPresent(String.self,   forKey: .customPingPath)
         latencyDegradedMs    = try c.decodeIfPresent(Double.self,   forKey: .latencyDegradedMs)
         customIcon           = try c.decodeIfPresent(String.self,   forKey: .customIcon)
+        failoverHost         = try c.decodeIfPresent(String.self,   forKey: .failoverHost)
+        homeNetwork          = try c.decodeIfPresent(String.self,   forKey: .homeNetwork)
     }
 
     var url: URL? {
@@ -120,6 +127,11 @@ struct Service: Identifiable, Codable, Hashable {
     }
 
     var icon: String { customIcon ?? serviceType.icon }
+
+    var failoverDisplayURL: String? {
+        guard let fh = failoverHost, !fh.isEmpty else { return nil }
+        return "\(scheme.rawValue)://\(fh):\(port)"
+    }
 
     /// Whether this service is only reachable on a local network (private IP or .local hostname).
     var isLocalNetwork: Bool {

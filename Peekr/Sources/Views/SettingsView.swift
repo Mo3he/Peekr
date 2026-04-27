@@ -201,10 +201,10 @@ struct SettingsView: View {
     private var networkInfoSection: some View {
         Section {
             HStack {
-                if net.isOnWiFi {
-                    Label("WiFi", systemImage: "wifi")
-                } else if net.likelyVPN {
+                if net.likelyVPN {
                     Label("VPN", systemImage: "lock.shield")
+                } else if net.isOnWiFi {
+                    Label("WiFi", systemImage: "wifi")
                 } else if net.isConnected {
                     Label("Cellular", systemImage: "antenna.radiowaves.left.and.right")
                 } else {

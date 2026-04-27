@@ -25,9 +25,8 @@ final class LiveDataStore: ObservableObject {
 
     func effectiveStatus(for service: Service) -> ServiceStatus {
         if checkingIDs.contains(service.id) { return .checking }
-        let networkOK = NetworkMonitor.shared.canReachLocal
         let status = liveData[service.id]?.status ?? service.status
-        if !networkOK && service.isLocalNetwork && status == .offline {
+        if service.isLocalNetwork && !NetworkMonitor.shared.canReachService(service) && status == .offline {
             return .unknown
         }
         return status
