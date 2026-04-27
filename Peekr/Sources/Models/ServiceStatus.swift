@@ -28,7 +28,7 @@ enum ServiceStatus: String, Codable {
         case .online:    return "Online"
         case .degraded:  return "Degraded"
         case .offline:   return "Offline"
-        case .checking:  return "Checking"
+        case .checking:  return "Refreshing"
         case .unknown:   return "Unknown"
         }
     }

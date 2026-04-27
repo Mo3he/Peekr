@@ -5,7 +5,7 @@ import Foundation
 
 struct RefreshAllServicesIntent: AppIntent {
     static var title: LocalizedStringResource = "Refresh All Services"
-    static var description = IntentDescription("Checks all Peekr services immediately and returns an overview.")
+    static var description = IntentDescription("Refreshes all Peekr services immediately and returns an overview.")
     static var openAppWhenRun = false
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -38,7 +38,7 @@ struct PeekrShortcuts: AppShortcutsProvider {
             intent: RefreshAllServicesIntent(),
             phrases: [
                 "Refresh \(.applicationName)",
-                "Check \(.applicationName) services",
+                "Refresh \(.applicationName) services",
                 "Ping \(.applicationName)"
             ],
             shortTitle: "Refresh Services",

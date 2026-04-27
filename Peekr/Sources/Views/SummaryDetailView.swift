@@ -83,10 +83,10 @@ struct SummaryDetailView: View {
                     StatusIndicatorView(status: status, size: 32)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(checking ? "Checking..." : status.label)
+                    Text(checking ? "Refreshing..." : status.label)
                         .font(.headline)
                     if let lastChecked = live.liveData[service.id]?.lastChecked ?? service.lastChecked {
-                        (Text("Checked ") + Text(lastChecked, style: .relative) + Text(" ago"))
+                        (Text("Refreshed ") + Text(lastChecked, style: .relative) + Text(" ago"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

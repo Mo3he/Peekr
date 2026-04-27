@@ -109,7 +109,7 @@ final class SummaryNotificationManager {
                 if matchedServices.count > 1 {
                     bodyLines.append("\(service.name): no data")
                 } else {
-                    bodyLines.append("Tap to check current status.")
+                    bodyLines.append("Tap to refresh.")
                 }
             } else {
                 let metricStr = metricsToShow.map { "\($0.label): \($0.value)" }.joined(separator: ", ")

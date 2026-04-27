@@ -73,7 +73,7 @@ struct SettingsView: View {
                 networkInfoSection
 
                 Section("Appearance") {
-                    Picker("Color Scheme", selection: $appearanceMode) {
+                    Picker("Color scheme", selection: $appearanceMode) {
                         Text("System").tag("system")
                         Text("Light").tag("light")
                         Text("Dark").tag("dark")
@@ -111,35 +111,37 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Picker("Auto-refresh", selection: $interval) {
+                    Picker("Interval", selection: $interval) {
                         ForEach(intervalOptions, id: \.seconds) { opt in
                             Text(opt.label).tag(opt.seconds)
                         }
                     }
                     .pickerStyle(.menu)
+                    .labelsHidden()
                 } header: {
-                    Text("Auto-Refresh Interval")
+                    Text("Auto-Refresh")
                 } footer: {
-                    Text("Services are checked one at a time in sequence. Pull down on the home screen to refresh all immediately.")
+                    Text("Services are refreshed one at a time in sequence. Pull down on the home screen to refresh all immediately.")
                 }
 
                 Section {
-                    Picker("Background Refresh", selection: $bgInterval) {
+                    Picker("Interval", selection: $bgInterval) {
                         ForEach(bgIntervalOptions, id: \.seconds) { opt in
                             Text(opt.label).tag(opt.seconds)
                         }
                     }
                     .pickerStyle(.menu)
+                    .labelsHidden()
                 } header: {
-                    Text("Background Refresh Interval")
+                    Text("Background Refresh")
                 } footer: {
-                    Text("How often Peekr checks your services while in the background. iOS may delay or skip refreshes to preserve battery.")
+                    Text("How often Peekr refreshes your services while in the background. iOS may delay or skip refreshes to preserve battery.")
                 }
 
 
 
                 Section {
-                    Picker("Request Timeout", selection: $requestTimeout) {
+                    Picker("Timeout", selection: $requestTimeout) {
                         Text("3 seconds").tag(3.0)
                         Text("5 seconds").tag(5.0)
                         Text("10 seconds").tag(10.0)
@@ -147,6 +149,7 @@ struct SettingsView: View {
                         Text("30 seconds").tag(30.0)
                     }
                     .pickerStyle(.menu)
+                    .labelsHidden()
                 } header: {
                     Text("Request Timeout")
                 } footer: {
@@ -154,7 +157,7 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Stepper("\(retryCount) \(retryCount == 1 ? "attempt" : "attempts")", value: $retryCount, in: 1...10)
+                    Stepper("\(retryCount)", value: $retryCount, in: 1...10)
                 } header: {
                     Text("Retries Before Offline")
                 } footer: {
@@ -193,7 +196,7 @@ struct SettingsView: View {
                         Label("Import Services", systemImage: "square.and.arrow.down")
                     }
 
-                    Picker("Keep History For", selection: $historyRetentionDays) {
+                    Picker("Keep history for", selection: $historyRetentionDays) {
                         ForEach(retentionOptions, id: \.days) { opt in
                             Text(opt.label).tag(opt.days)
                         }
@@ -223,10 +226,22 @@ struct SettingsView: View {
                 Section("About") {
                     LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
                     Link(destination: feedbackURL) {
-                        Label("Send Feedback", systemImage: "envelope")
+                        HStack {
+                            Label("Send Feedback", systemImage: "envelope")
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     Link(destination: URL(string: "https://mohome.net/peekr-privacy")!) {
-                        Label("Privacy Policy", systemImage: "hand.raised.fill")
+                        HStack {
+                            Label("Privacy Policy", systemImage: "hand.raised.fill")
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     Link(destination: URL(string: "https://apps.apple.com/app/id000000000?action=write-review")!) {
                         HStack {
@@ -311,7 +326,7 @@ struct SettingsView: View {
         } header: {
             Text("Network")
         } footer: {
-            Text("Local checks are automatically paused when your services can't be reached on the current network.")
+            Text("Local refreshes are automatically paused when your services can't be reached on the current network.")
         }
     }
 }

@@ -167,7 +167,7 @@ struct AddServiceView: View {
         }
 
         Section {
-            Picker("Check Interval", selection: $checkInterval) {
+            Picker("Refresh interval", selection: $checkInterval) {
                 ForEach(Self.intervalOptions, id: \.value) { opt in
                     Text(opt.label).tag(opt.value)
                 }
@@ -215,7 +215,7 @@ struct AddServiceView: View {
             TextField("Group (optional)", text: $group)
                 .textInputAutocapitalization(.words)
 
-            Picker("Check Interval", selection: $checkInterval) {
+            Picker("Refresh interval", selection: $checkInterval) {
                 ForEach(Self.intervalOptions, id: \.value) { opt in
                     Text(opt.label).tag(opt.value)
                 }
@@ -262,7 +262,7 @@ struct AddServiceView: View {
         } header: {
             Text("Network")
         } footer: {
-            Text("Failover host is tried when the primary is unreachable (useful for VPN or Tailscale addresses).")
+            Text("Failover host is tried when the primary is unreachable (useful for VPN/private network addresses).")
         }
 
         if scheme == .https {
@@ -279,7 +279,7 @@ struct AddServiceView: View {
                     .foregroundStyle(.secondary)
                     .padding(.top, 1)
                 Text(effectiveType == .generic
-                     ? "Peekr will check HTTP status and response time."
+                     ? "Peekr will monitor HTTP status and response time."
                      : "Detected as \(effectiveType.displayName). Peekr will fetch live metrics from its API.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

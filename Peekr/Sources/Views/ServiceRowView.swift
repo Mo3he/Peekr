@@ -41,7 +41,20 @@ struct ServiceRowView: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(.thinMaterial)
+                .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+                .shadow(color: .black.opacity(0.04), radius: 1, x: 0, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.3), .white.opacity(0.05)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 0.75
+                )
         )
     }
 
@@ -175,7 +188,20 @@ struct ReorderRowView: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(.thinMaterial)
+                .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+                .shadow(color: .black.opacity(0.04), radius: 1, x: 0, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.3), .white.opacity(0.05)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 0.75
+                )
         )
     }
 
@@ -204,7 +230,10 @@ struct MetricChip: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(metric.color.opacity(0.12), in: Capsule())
-        .overlay(Capsule().stroke(metric.color.opacity(0.2), lineWidth: 0.5))
+        .background {
+            Capsule().fill(metric.color.opacity(0.1))
+                .overlay(Capsule().fill(.ultraThinMaterial))
+        }
+        .overlay(Capsule().stroke(metric.color.opacity(0.25), lineWidth: 0.5))
     }
 }

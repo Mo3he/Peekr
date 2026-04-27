@@ -34,7 +34,7 @@ struct OnboardingView: View {
             "bell.badge.fill",
             .red,
             "Stay Notified",
-            "Background checks run every 15 minutes. If a service goes offline you'll get a notification straight away."
+            "Background refreshes run every 15 minutes. If a service goes offline you'll get a notification straight away."
         ),
     ]
 

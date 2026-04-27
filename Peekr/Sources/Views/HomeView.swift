@@ -153,6 +153,14 @@ struct HomeView: View {
         }
         .environment(\.editMode, .constant(reorderMode != .none ? .active : .inactive))
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(
+            LinearGradient(
+                colors: [Color(.systemBackground), Color(.systemGroupedBackground)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
         .refreshable { vm.refreshAll() }
     }
 
@@ -178,7 +186,7 @@ struct HomeView: View {
                 }
                 Spacer()
                 if network.isOnWiFi {
-                    Button("Check anyway") {
+                    Button("Refresh anyway") {
                         network.reprobeAndOverride()
                     }
                     .font(.caption.bold())
@@ -447,6 +455,8 @@ private struct OverallStatusSection: View {
                 OverallStatusContent(vm: vm)
             }
             .buttonStyle(.plain)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
         } header: {
             Text("Overall Health")
         }
@@ -509,7 +519,7 @@ private struct OverallStatusContent: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text("checked")
+                Text("refreshed")
                     .font(.caption2)
                     .foregroundStyle(.quaternary)
                 if let date = live.lastRefreshed {
@@ -526,6 +536,34 @@ private struct OverallStatusContent: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(.thinMaterial)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [overallHealth.color.opacity(0.12), overallHealth.color.opacity(0.03)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+            .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+            .shadow(color: .black.opacity(0.04), radius: 1, x: 0, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [overallHealth.color.opacity(0.3), .white.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.75
+                )
+        )
         .foregroundStyle(.primary)
     }
 }
