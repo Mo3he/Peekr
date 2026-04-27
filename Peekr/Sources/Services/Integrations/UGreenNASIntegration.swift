@@ -236,7 +236,7 @@ struct UGreenNASIntegration: ServiceIntegration {
 
     /// Strips the SPKI ASN.1 wrapper to get the raw PKCS#1 RSA public key bytes.
     private func extractPKCS1FromSPKI(_ spki: Data) -> Data? {
-        var bytes = [UInt8](spki)
+        let bytes = [UInt8](spki)
         var idx = 0
         func readLength() -> Int {
             guard idx < bytes.count else { return 0 }

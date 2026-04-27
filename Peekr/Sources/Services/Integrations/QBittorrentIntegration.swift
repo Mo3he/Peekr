@@ -7,7 +7,10 @@ struct QBittorrentIntegration: ServiceIntegration {
         // Attempt login if credentials are provided; fail fast with a clear message if they're wrong.
         var cookie: String? = nil
         if let user = service.username, !user.isEmpty {
-            guard let sid = try? await login(base: base, username: user, password: service.password ?? "") else {
+            do {
+                cookie = try await login(base: base, username: user, password: service.password ?? "")
+            } catch is IntegrationError {
+                // Genuine auth failure (server responded but rejected credentials).
                 return [ServiceMetric(
                     label: "Auth failed",
                     value: "Check username & password",
@@ -16,7 +19,7 @@ struct QBittorrentIntegration: ServiceIntegration {
                     isAlert: true
                 )]
             }
-            cookie = sid
+            // Network errors propagate so the caller preserves previous metrics.
         }
 
         // Build headers as a `let` so the `async let` fetches don't capture a `var`

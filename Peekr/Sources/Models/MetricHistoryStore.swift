@@ -74,13 +74,25 @@ final class MetricHistoryStore {
 
     // MARK: - Persistence
 
+    private static let fileURL: URL = {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("metricHistory.json")
+    }()
+
     private func save() {
         guard let data = try? JSONEncoder().encode(history) else { return }
-        UserDefaults.standard.set(data, forKey: storageKey)
+        try? data.write(to: Self.fileURL, options: .atomic)
     }
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
+        // Migrate from UserDefaults if the file doesn't exist yet.
+        if !FileManager.default.fileExists(atPath: Self.fileURL.path),
+           let legacy = UserDefaults.standard.data(forKey: storageKey) {
+            try? legacy.write(to: Self.fileURL, options: .atomic)
+            UserDefaults.standard.removeObject(forKey: storageKey)
+        }
+        guard let data = try? Data(contentsOf: Self.fileURL),
               let decoded = try? JSONDecoder().decode([String: [MetricSnapshot]].self, from: data)
         else { return }
         history = decoded

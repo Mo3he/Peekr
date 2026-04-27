@@ -130,9 +130,18 @@ final class MetricAlertStore: ObservableObject {
 
     // MARK: - Persistence
 
+    private static let dir: URL = {
+        let d = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        return d
+    }()
+    private static let rulesFileURL      = dir.appendingPathComponent("metricAlertRules.json")
+    private static let lastValuesFileURL = dir.appendingPathComponent("metricAlertLastValues.json")
+    private static let lastAlertFileURL  = dir.appendingPathComponent("metricAlertLastState.json")
+
     private func save() {
         if let data = try? JSONEncoder().encode(rules) {
-            UserDefaults.standard.set(data, forKey: rulesKey)
+            try? data.write(to: Self.rulesFileURL, options: .atomic)
         }
         saveLastValues()
         saveLastState()
@@ -140,19 +149,24 @@ final class MetricAlertStore: ObservableObject {
 
     private func saveLastValues() {
         if let data = try? JSONEncoder().encode(lastValues) {
-            UserDefaults.standard.set(data, forKey: lastValuesKey)
+            try? data.write(to: Self.lastValuesFileURL, options: .atomic)
         }
     }
 
     private func saveLastState() {
         if let data = try? JSONEncoder().encode(lastAlertState) {
-            UserDefaults.standard.set(data, forKey: lastAlertKey)
+            try? data.write(to: Self.lastAlertFileURL, options: .atomic)
         }
     }
 
     private func load() {
+        // Migrate from UserDefaults if files don't exist yet.
+        migrateIfNeeded(key: rulesKey, to: Self.rulesFileURL)
+        migrateIfNeeded(key: lastValuesKey, to: Self.lastValuesFileURL)
+        migrateIfNeeded(key: lastAlertKey, to: Self.lastAlertFileURL)
+
         // Try new format first
-        if let data = UserDefaults.standard.data(forKey: rulesKey),
+        if let data = try? Data(contentsOf: Self.rulesFileURL),
            let decoded = try? JSONDecoder().decode([String: Rule].self, from: data) {
             rules = decoded
         } else if let data = UserDefaults.standard.data(forKey: legacyRulesKey),
@@ -167,13 +181,21 @@ final class MetricAlertStore: ObservableObject {
             }
             save() // persist migrated data in new format
         }
-        if let data = UserDefaults.standard.data(forKey: lastValuesKey),
+        if let data = try? Data(contentsOf: Self.lastValuesFileURL),
            let dict = try? JSONDecoder().decode([String: String].self, from: data) {
             lastValues = dict
         }
-        if let data = UserDefaults.standard.data(forKey: lastAlertKey),
+        if let data = try? Data(contentsOf: Self.lastAlertFileURL),
            let dict = try? JSONDecoder().decode([String: Bool].self, from: data) {
             lastAlertState = dict
+        }
+    }
+
+    private func migrateIfNeeded(key: String, to url: URL) {
+        if !FileManager.default.fileExists(atPath: url.path),
+           let legacy = UserDefaults.standard.data(forKey: key) {
+            try? legacy.write(to: url, options: .atomic)
+            UserDefaults.standard.removeObject(forKey: key)
         }
     }
 }

@@ -85,6 +85,7 @@ struct PeekrApp: App {
             ContentView()
                 .environmentObject(vm)
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                    LiveDataStore.shared.flushMetricsToDisk()
                     scheduleBackgroundRefresh()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in

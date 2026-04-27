@@ -440,6 +440,22 @@ struct HomeView: View {
 private struct OverallStatusSection: View {
     let vm: HomeViewModel
     let onTap: () -> Void
+
+    var body: some View {
+        Section {
+            Button(action: onTap) {
+                OverallStatusContent(vm: vm)
+            }
+            .buttonStyle(.plain)
+        } header: {
+            Text("Overall Health")
+        }
+    }
+}
+
+/// Isolated content view so LiveDataStore changes don't cause the parent List to re-layout.
+private struct OverallStatusContent: View {
+    let vm: HomeViewModel
     @ObservedObject private var live = LiveDataStore.shared
 
     private var onlineCount: Int   { vm.services.filter { (live.liveData[$0.id]?.status ?? $0.status) == .online   }.count }
@@ -458,69 +474,76 @@ private struct OverallStatusSection: View {
     }
 
     var body: some View {
-        Section {
-            Button(action: onTap) {
-                HStack(spacing: 16) {
-                    StatusIndicatorView(status: overallHealth, size: 50)
+        HStack(spacing: 16) {
+            StatusIndicatorView(status: overallHealth, size: 50)
 
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(overallHealth.label)
-                            .font(.title3.bold())
+            VStack(alignment: .leading, spacing: 5) {
+                Text(overallHealth.label)
+                    .font(.title3.bold())
 
-                        HStack(spacing: 6) {
-                            Label("\(onlineCount) online", systemImage: "circle.fill")
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(.green)
-                                .labelStyle(CompactLabelStyle())
-                                .fixedSize()
-                            if degradedCount > 0 {
-                                Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
-                                Label("\(degradedCount) degraded", systemImage: "circle.fill")
-                                    .font(.caption.weight(.medium))
-                                    .foregroundStyle(.orange)
-                                    .labelStyle(CompactLabelStyle())
-                                    .fixedSize()
-                            }
-                            if offlineCount > 0 {
-                                Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
-                                Label("\(offlineCount) offline", systemImage: "circle.fill")
-                                    .font(.caption.weight(.medium))
-                                    .foregroundStyle(.red)
-                                    .labelStyle(CompactLabelStyle())
-                                    .fixedSize()
-                            }
-                        }
+                HStack(spacing: 6) {
+                    Label("\(onlineCount) online", systemImage: "circle.fill")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.green)
+                        .labelStyle(CompactLabelStyle())
+                        .fixedSize()
+                    if degradedCount > 0 {
+                        Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
+                        Label("\(degradedCount) degraded", systemImage: "circle.fill")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.orange)
+                            .labelStyle(CompactLabelStyle())
+                            .fixedSize()
                     }
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("checked")
-                            .font(.caption2)
-                            .foregroundStyle(.quaternary)
-                        if let date = live.lastRefreshed {
-                            Text(date, style: .relative)
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                                .monospacedDigit()
-                        } else {
-                            Text("\u{2013}")
-                                .font(.caption)
-                                .foregroundStyle(.clear)
-                        }
+                    if offlineCount > 0 {
+                        Text("\u{00b7}").foregroundStyle(.tertiary).font(.caption)
+                        Label("\(offlineCount) offline", systemImage: "circle.fill")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.red)
+                            .labelStyle(CompactLabelStyle())
+                            .fixedSize()
                     }
-
-                    Image(systemName: "chevron.right")
-                        .font(.caption.bold())
-                        .foregroundStyle(.tertiary)
                 }
-                .padding(.vertical, 6)
-                .foregroundStyle(.primary)
             }
-            .buttonStyle(.plain)
-        } header: {
-            Text("Overall Health")
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("checked")
+                    .font(.caption2)
+                    .foregroundStyle(.quaternary)
+                if let date = live.lastRefreshed {
+                    RelativeTimestamp(date: date)
+                } else {
+                    Text("\u{2013}")
+                        .font(.caption)
+                        .foregroundStyle(.clear)
+                }
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.caption.bold())
+                .foregroundStyle(.tertiary)
         }
+        .padding(.vertical, 6)
+        .foregroundStyle(.primary)
+    }
+}
+
+/// Displays a relative timestamp that updates on a 60-second timer instead of
+/// using `Text(date, style: .relative)` which can cause parent List layout passes.
+private struct RelativeTimestamp: View {
+    let date: Date
+    @State private var now = Date()
+    private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        Text(date, style: .relative)
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .monospacedDigit()
+            .id(Int(now.timeIntervalSince1970) / 60)
+            .onReceive(timer) { now = $0 }
     }
 }
 

@@ -57,18 +57,29 @@ final class StatusHistoryStore: ObservableObject {
     }
 
     private func save() {
-        // Convert UUID keys to strings for Codable
         let encoded = Dictionary(uniqueKeysWithValues: history.map { ($0.key.uuidString, $0.value) })
         guard let data = try? JSONEncoder().encode(encoded) else { return }
-        UserDefaults.standard.set(data, forKey: key)
+        try? data.write(to: Self.fileURL, options: .atomic)
     }
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: key),
+        // Migrate from UserDefaults if the file doesn't exist yet.
+        if !FileManager.default.fileExists(atPath: Self.fileURL.path),
+           let legacy = UserDefaults.standard.data(forKey: key) {
+            try? legacy.write(to: Self.fileURL, options: .atomic)
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        guard let data = try? Data(contentsOf: Self.fileURL),
               let decoded = try? JSONDecoder().decode([String: [StatusSnapshot]].self, from: data)
         else { return }
         history = Dictionary(uniqueKeysWithValues: decoded.compactMap { k, v in
             UUID(uuidString: k).map { ($0, v) }
         })
     }
+
+    private static let fileURL: URL = {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("statusHistory.json")
+    }()
 }

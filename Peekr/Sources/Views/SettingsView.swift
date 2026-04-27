@@ -158,7 +158,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Retries Before Offline")
                 } footer: {
-                    Text("Number of consecutive failed checks before a service is marked offline.")
+                    Text("Number of consecutive refresh cycles that must fail before a service is marked offline. Each retry happens on the next scheduled refresh, not back-to-back.")
                 }
 
                 Section("Security") {

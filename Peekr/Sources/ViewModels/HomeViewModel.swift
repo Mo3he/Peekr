@@ -280,7 +280,7 @@ final class HomeViewModel: ObservableObject {
         do {
             var fetched = try await integration.fetchMetrics(service: updated)
             if let latency = updated.latencyMs {
-                fetched.insert(ServiceMetric(label: "Response Time", value: "\(Int(latency)) ms", icon: "clock", color: .secondary), at: 0)
+                fetched.append(ServiceMetric(label: "Response Time", value: "\(Int(latency)) ms", icon: "clock", color: .secondary))
             }
             fetched = applyMetricOrder(fetched, serviceID: updated.id)
             live.setMetrics(fetched, for: updated.id)
@@ -745,8 +745,18 @@ final class HomeViewModel: ObservableObject {
                     let integration = IntegrationProvider.integration(for: serviceForMetrics)
                     do {
                         var fetched = try await integration.fetchMetrics(service: serviceForMetrics)
-                        fetched = self.applyMetricOrder(fetched, serviceID: service.id)
-                        newMetrics[service.id] = fetched
+                        if fetched.isEmpty && liveEntry.status != .offline {
+                            // Integration returned nothing (e.g. all sub-requests timed
+                            // out after returning from background). Keep previous metrics
+                            // but update the Response Time value in-place.
+                            self.updateResponseTime(in: &newMetrics, serviceID: service.id, latencyMs: liveEntry.latencyMs)
+                        } else {
+                            if let latency = liveEntry.latencyMs {
+                                fetched.append(ServiceMetric(label: "Response Time", value: "\(Int(latency)) ms", icon: "clock", color: .secondary))
+                            }
+                            fetched = self.applyMetricOrder(fetched, serviceID: service.id)
+                            newMetrics[service.id] = fetched
+                        }
                         newErrors.removeValue(forKey: service.id)
                     } catch let e as IntegrationError {
                         switch e {
@@ -757,12 +767,14 @@ final class HomeViewModel: ObservableObject {
                             // Preserve last-good metrics on transient failures.
                             newErrors[service.id] = e.localizedDescription
                         case .serviceError, .unexpectedFormat, .badURL:
-                            newMetrics[service.id] = []
-                            newErrors[service.id]  = e.localizedDescription
+                            newErrors[service.id] = e.localizedDescription
                         }
                     } catch {
-                        newMetrics[service.id] = []
-                        newErrors[service.id]  = error.localizedDescription
+                        // Network error after a successful ping (e.g. integration API
+                        // timed out while the host itself responded). Keep previous
+                        // metrics but update Response Time.
+                        self.updateResponseTime(in: &newMetrics, serviceID: service.id, latencyMs: liveEntry.latencyMs)
+                        newErrors[service.id] = error.localizedDescription
                     }
                 }
             }
@@ -777,5 +789,21 @@ final class HomeViewModel: ObservableObject {
     func stopAutoRefresh() {
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
+    }
+
+    /// Update only the Response Time metric inside an existing metrics array,
+    /// preserving all other (integration-provided) metrics from the previous fetch.
+    private func updateResponseTime(in metricsDict: inout [UUID: [ServiceMetric]], serviceID: UUID, latencyMs: Double?) {
+        guard var existing = metricsDict[serviceID] else { return }
+        if let idx = existing.firstIndex(where: { $0.label == "Response Time" }) {
+            if let latency = latencyMs {
+                existing[idx] = ServiceMetric(label: "Response Time", value: "\(Int(latency)) ms", icon: "clock", color: .secondary)
+            } else {
+                existing.remove(at: idx)
+            }
+        } else if let latency = latencyMs {
+            existing.append(ServiceMetric(label: "Response Time", value: "\(Int(latency)) ms", icon: "clock", color: .secondary))
+        }
+        metricsDict[serviceID] = existing
     }
 }

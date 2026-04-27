@@ -110,13 +110,12 @@ actor PingService {
                 port: NWEndpoint.Port(integerLiteral: UInt16(port))
             )
             let connection = NWConnection(to: endpoint, using: .tcp)
-            var settled = false
+            let once = OnceFlag()
 
             let timer = DispatchSource.makeTimerSource(queue: .global())
             timer.schedule(deadline: .now() + timeout)
             timer.setEventHandler {
-                guard !settled else { return }
-                settled = true
+                guard once.claim() else { return }
                 connection.cancel()
                 continuation.resume(throwing: CheckError.timeout)
             }
@@ -125,14 +124,12 @@ actor PingService {
             connection.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
-                    guard !settled else { return }
-                    settled = true
+                    guard once.claim() else { return }
                     timer.cancel()
                     connection.cancel()
                     continuation.resume()
                 case .failed(let error), .waiting(let error):
-                    guard !settled else { return }
-                    settled = true
+                    guard once.claim() else { return }
                     timer.cancel()
                     continuation.resume(throwing: error)
                 default: break
@@ -142,6 +139,21 @@ actor PingService {
         }
 
         return Date().timeIntervalSince(start) * 1000
+    }
+}
+
+/// Thread-safe one-shot flag used to ensure a CheckedContinuation is resumed exactly once.
+private final class OnceFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var settled = false
+
+    /// Returns `true` the first time it is called; `false` on every subsequent call.
+    func claim() -> Bool {
+        lock.withLock {
+            guard !settled else { return false }
+            settled = true
+            return true
+        }
     }
 }
 

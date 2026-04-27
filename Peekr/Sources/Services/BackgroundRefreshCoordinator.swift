@@ -151,17 +151,21 @@ enum BackgroundRefreshCoordinator {
                     let integration = IntegrationProvider.integration(for: service)
                     do {
                         var fetched = try await integration.fetchMetrics(service: service)
-                        if let latency = liveEntry.latencyMs {
-                            fetched.insert(ServiceMetric(label: "Response Time", value: "\(Int(latency)) ms", icon: "clock", color: .secondary), at: 0)
+                        if fetched.isEmpty && liveEntry.status != .offline {
+                            updateResponseTime(in: &newMetrics, serviceID: service.id, latencyMs: liveEntry.latencyMs)
+                        } else {
+                            if let latency = liveEntry.latencyMs {
+                                fetched.append(ServiceMetric(label: "Response Time", value: "\(Int(latency)) ms", icon: "clock", color: .secondary))
+                            }
+                            fetched = applyMetricOrder(fetched, serviceID: service.id)
+                            newMetrics[service.id] = fetched
                         }
-                        fetched = applyMetricOrder(fetched, serviceID: service.id)
-                        newMetrics[service.id] = fetched
                         newErrors.removeValue(forKey: service.id)
                     } catch IntegrationError.transient(let retryAfter) {
                         newErrors[service.id] = IntegrationError.transient(retryAfter: retryAfter).localizedDescription
                     } catch {
-                        newMetrics[service.id] = []
-                        newErrors[service.id]  = error.localizedDescription
+                        updateResponseTime(in: &newMetrics, serviceID: service.id, latencyMs: liveEntry.latencyMs)
+                        newErrors[service.id] = error.localizedDescription
                     }
                 }
             }
@@ -192,5 +196,19 @@ enum BackgroundRefreshCoordinator {
         updated.httpStatusCode = liveEntry.httpStatusCode
         updated.lastChecked    = liveEntry.lastChecked
         return updated
+    }
+
+    private static func updateResponseTime(in metricsDict: inout [UUID: [ServiceMetric]], serviceID: UUID, latencyMs: Double?) {
+        guard var existing = metricsDict[serviceID] else { return }
+        if let idx = existing.firstIndex(where: { $0.label == "Response Time" }) {
+            if let latency = latencyMs {
+                existing[idx] = ServiceMetric(label: "Response Time", value: "\(Int(latency)) ms", icon: "clock", color: .secondary)
+            } else {
+                existing.remove(at: idx)
+            }
+        } else if let latency = latencyMs {
+            existing.append(ServiceMetric(label: "Response Time", value: "\(Int(latency)) ms", icon: "clock", color: .secondary))
+        }
+        metricsDict[serviceID] = existing
     }
 }
