@@ -32,7 +32,9 @@ final class NetworkMonitor: ObservableObject {
         if userOverride { return true }
         if likelyVPN { return true }
         if !isOnWiFi { return false }
-        if isProbing { return false }
+        // While probing, keep showing the last-known result to avoid UI flashing.
+        // Only block if we have never probed or the last probe was negative.
+        if isProbing { return isHomeNetwork ?? false }
         guard let home = isHomeNetwork else { return false }
         return home
     }
@@ -49,32 +51,48 @@ final class NetworkMonitor: ObservableObject {
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "peekr.networkMonitor")
     private let probeQueue = DispatchQueue(label: "peekr.probe")
+    /// Debounce timer to coalesce rapid NWPathMonitor updates.
+    private var debounceTask: Task<Void, Never>?
 
     private init() {
         monitor.pathUpdateHandler = { [weak self] path in
             Task { @MainActor in
                 guard let self else { return }
-                let wasOnWiFi = self.isOnWiFi
-                self.isConnected = path.status == .satisfied
-                self.isOnWiFi = path.usesInterfaceType(.wifi) || path.usesInterfaceType(.wiredEthernet)
-                self.likelyVPN = path.usesInterfaceType(.other)
-
-                // Network changed - reset probe result and user override
-                if self.isOnWiFi != wasOnWiFi {
-                    self.isHomeNetwork = nil
-                    self.userOverride = false
-                }
-
-                if self.isOnWiFi {
-                    self.currentLocalIP = Self.currentWiFiIPv4()
-                    await self.probeLocalReachability()
-                } else {
-                    self.isHomeNetwork = nil
-                    self.currentLocalIP = nil
-                }
+                self.handlePathUpdate(path)
             }
         }
         monitor.start(queue: queue)
+    }
+
+    private func handlePathUpdate(_ path: NWPath) {
+        let wasOnWiFi = isOnWiFi
+        isConnected = path.status == .satisfied
+        isOnWiFi = path.usesInterfaceType(.wifi) || path.usesInterfaceType(.wiredEthernet)
+        likelyVPN = path.usesInterfaceType(.other)
+
+        if !isOnWiFi {
+            debounceTask?.cancel()
+            isHomeNetwork = nil
+            userOverride = false
+            currentLocalIP = nil
+            return
+        }
+
+        // WiFi state changed (was off, now on): reset override so a fresh probe runs.
+        if isOnWiFi != wasOnWiFi {
+            userOverride = false
+        }
+
+        currentLocalIP = Self.currentWiFiIPv4()
+
+        // Debounce: NWPathMonitor often fires multiple updates in quick succession.
+        // Wait briefly before probing to coalesce them into a single probe.
+        debounceTask?.cancel()
+        debounceTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+            guard !Task.isCancelled else { return }
+            await self.probeLocalReachability()
+        }
     }
 
     deinit {

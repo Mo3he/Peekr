@@ -667,6 +667,13 @@ final class HomeViewModel: ObservableObject {
                             self.uptimeStore.record(serviceID: service.id, status: liveEntry.status)
                             var tmp = service; tmp.status = liveEntry.status
                             self.recordTransition(previousStatus: previousStatus, service: tmp)
+                            // Check per-metric alert rules
+                            if service.notificationsEnabled {
+                                let alertStore = MetricAlertStore.shared
+                                for metric in fetched where alertStore.shouldFire(metric: metric, serviceID: service.id) {
+                                    await NotificationService.postMetricAlert(for: service, metric: metric)
+                                }
+                            }
                         } catch let e as IntegrationError {
                             switch e {
                             case .authFailed:
@@ -756,6 +763,13 @@ final class HomeViewModel: ObservableObject {
                             }
                             fetched = self.applyMetricOrder(fetched, serviceID: service.id)
                             newMetrics[service.id] = fetched
+                        }
+                        // Check per-metric alert rules
+                        if service.notificationsEnabled {
+                            let alertStore = MetricAlertStore.shared
+                            for metric in (newMetrics[service.id] ?? []) where alertStore.shouldFire(metric: metric, serviceID: service.id) {
+                                await NotificationService.postMetricAlert(for: service, metric: metric)
+                            }
                         }
                         newErrors.removeValue(forKey: service.id)
                     } catch let e as IntegrationError {

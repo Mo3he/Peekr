@@ -62,6 +62,13 @@ enum BackgroundRefreshCoordinator {
                             eventStore.recordTransition(previousStatus: previousStatus,
                                                         newStatus: liveEntry.status,
                                                         service: service)
+                            // Check per-metric alert rules
+                            if service.notificationsEnabled {
+                                let alertStore = MetricAlertStore.shared
+                                for metric in fetched where alertStore.shouldFire(metric: metric, serviceID: service.id) {
+                                    await NotificationService.postMetricAlert(for: service, metric: metric)
+                                }
+                            }
                         } catch IntegrationError.transient(let retryAfter) {
                             AppLogger.refresh.info("[BG] \(service.name, privacy: .public) (cloud) rate-limited, retryAfter=\(retryAfter ?? 0)")
                             newErrors[service.id] = IntegrationError.transient(retryAfter: retryAfter).localizedDescription
@@ -159,6 +166,13 @@ enum BackgroundRefreshCoordinator {
                             }
                             fetched = applyMetricOrder(fetched, serviceID: service.id)
                             newMetrics[service.id] = fetched
+                        }
+                        // Check per-metric alert rules
+                        if service.notificationsEnabled {
+                            let alertStore = MetricAlertStore.shared
+                            for metric in (newMetrics[service.id] ?? []) where alertStore.shouldFire(metric: metric, serviceID: service.id) {
+                                await NotificationService.postMetricAlert(for: service, metric: metric)
+                            }
                         }
                         newErrors.removeValue(forKey: service.id)
                     } catch IntegrationError.transient(let retryAfter) {
