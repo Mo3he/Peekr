@@ -39,13 +39,23 @@ struct ServiceRowView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(
+        .background {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.thinMaterial)
-                .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
-                .shadow(color: .black.opacity(0.04), radius: 1, x: 0, y: 1)
-        )
-        .overlay(
+                .fill(Color(.secondarySystemGroupedBackground))
+                .shadow(color: .black.opacity(0.06), radius: 3, x: 0, y: 1)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [.white.opacity(0.12), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .allowsHitTesting(false)
+        }
+        .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(
                     LinearGradient(
@@ -55,7 +65,7 @@ struct ServiceRowView: View {
                     ),
                     lineWidth: 0.75
                 )
-        )
+        }
     }
 
     // MARK: - Subviews
@@ -186,13 +196,23 @@ struct ReorderRowView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(
+        .background {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.thinMaterial)
-                .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
-                .shadow(color: .black.opacity(0.04), radius: 1, x: 0, y: 1)
-        )
-        .overlay(
+                .fill(Color(.secondarySystemGroupedBackground))
+                .shadow(color: .black.opacity(0.06), radius: 3, x: 0, y: 1)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [.white.opacity(0.12), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .allowsHitTesting(false)
+        }
+        .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(
                     LinearGradient(
@@ -202,7 +222,7 @@ struct ReorderRowView: View {
                     ),
                     lineWidth: 0.75
                 )
-        )
+        }
     }
 
     private func latencyColor(_ ms: Double) -> Color {
@@ -231,8 +251,8 @@ struct MetricChip: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background {
-            Capsule().fill(metric.color.opacity(0.1))
-                .overlay(Capsule().fill(.ultraThinMaterial))
+            Capsule().fill(Color(.tertiarySystemFill))
+                .overlay(Capsule().fill(metric.color.opacity(0.08)))
         }
         .overlay(Capsule().stroke(metric.color.opacity(0.25), lineWidth: 0.5))
     }
