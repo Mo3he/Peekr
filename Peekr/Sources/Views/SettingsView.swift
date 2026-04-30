@@ -172,8 +172,9 @@ struct SettingsView: View {
 
                 Section("Data") {
                     if let data = vm.exportJSON() {
+                        let jsonFile = JSONFile(data: data, filename: "peekr-services.json")
                         ShareLink(
-                            item: data,
+                            item: jsonFile,
                             preview: SharePreview("Peekr Services", image: Image(systemName: "square.and.arrow.up"))
                         ) {
                             Label("Export Services", systemImage: "square.and.arrow.up")
