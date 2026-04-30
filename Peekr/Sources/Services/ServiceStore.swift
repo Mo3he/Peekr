@@ -23,26 +23,23 @@ final class ServiceStore: ObservableObject {
         let username: String?
         let password: String?
     }
-    // PAID_ACCOUNT: private let icloud = NSUbiquitousKeyValueStore.default
+    private let icloud = NSUbiquitousKeyValueStore.default
 
-    // PAID_ACCOUNT: switch to App Group suite when entitlements are active:
-    // private let defaults = UserDefaults(suiteName: "group.com.mblieden.peekr") ?? .standard
-    private let defaults: UserDefaults = .standard
+    private let defaults = UserDefaults(suiteName: "group.net.mohome.peekr") ?? .standard
 
     private init() {
-        // PAID_ACCOUNT: uncomment iCloud observer when ubiquity-kvstore entitlement is active
-        // NotificationCenter.default.addObserver(
-        //     forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-        //     object: icloud, queue: .main
-        // ) { [weak self] notification in
-        //     guard let self else { return }
-        //     let reason = notification.userInfo?[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int
-        //     if reason == NSUbiquitousKeyValueStoreServerChange ||
-        //        reason == NSUbiquitousKeyValueStoreInitialSyncChange {
-        //         Task { @MainActor in self.mergeFromiCloud() }
-        //     }
-        // }
-        // icloud.synchronize()
+        NotificationCenter.default.addObserver(
+            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: icloud, queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            let reason = notification.userInfo?[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int
+            if reason == NSUbiquitousKeyValueStoreServerChange ||
+               reason == NSUbiquitousKeyValueStoreInitialSyncChange {
+                Task { @MainActor in self.mergeFromiCloud() }
+            }
+        }
+        icloud.synchronize()
         load()
     }
 
@@ -126,53 +123,50 @@ final class ServiceStore: ObservableObject {
         defaults.set(data, forKey: key)
         // Keep the TLS-trust registry in sync so sessions know which hosts are user-trusted.
         InsecureTrustRegistry.shared.reload(from: services)
-        // PAID_ACCOUNT: uncomment to push to iCloud KV store for cross-device sync
-        // icloud.set(data, forKey: key)
-        // icloud.synchronize()
+        icloud.set(data, forKey: key)
+        icloud.synchronize()
     }
 
-    // PAID_ACCOUNT: Called when iCloud pushes changes from another device.
-    // Uncomment (and restore icloud property + observer) when ubiquity-kvstore entitlement is active.
-    // private func mergeFromiCloud() {
-    //     guard let data = NSUbiquitousKeyValueStore.default.data(forKey: key),
-    //           let remote = try? decoder.decode([Service].self, from: data)
-    //     else { return }
-    //
-    //     var merged = services
-    //     for var remoteService in remote {
-    //         remoteService.apiKey   = KeychainHelper.load(account: keychainKey("apikey",   id: remoteService.id))
-    //         remoteService.username = KeychainHelper.load(account: keychainKey("username", id: remoteService.id))
-    //         remoteService.password = KeychainHelper.load(account: keychainKey("password", id: remoteService.id))
-    //
-    //         if let localIdx = merged.firstIndex(where: { $0.id == remoteService.id }) {
-    //             let local = merged[localIdx]
-    //             let useRemote: Bool
-    //             switch (local.lastChecked, remoteService.lastChecked) {
-    //             case (.none, .some): useRemote = true
-    //             case (.some, .none): useRemote = false
-    //             case (.some(let l), .some(let r)): useRemote = r > l
-    //             case (.none, .none): useRemote = false
-    //             }
-    //             if useRemote {
-    //                 var updated = remoteService
-    //                 updated.status         = local.status
-    //                 updated.latencyMs      = local.latencyMs
-    //                 updated.lastChecked    = local.lastChecked
-    //                 updated.httpStatusCode = local.httpStatusCode
-    //                 merged[localIdx] = updated
-    //             }
-    //         } else {
-    //             merged.append(remoteService)
-    //         }
-    //     }
-    //     services = merged
-    //     let sanitized = merged.map { s -> Service in
-    //         var copy = s; copy.apiKey = nil; copy.username = nil; copy.password = nil; return copy
-    //     }
-    //     if let data = try? encoder.encode(sanitized) {
-    //         defaults.set(data, forKey: key)
-    //     }
-    // }
+    private func mergeFromiCloud() {
+        guard let data = icloud.data(forKey: key),
+              let remote = try? decoder.decode([Service].self, from: data)
+        else { return }
+
+        var merged = services
+        for var remoteService in remote {
+            remoteService.apiKey   = KeychainHelper.load(account: keychainKey("apikey",   id: remoteService.id))
+            remoteService.username = KeychainHelper.load(account: keychainKey("username", id: remoteService.id))
+            remoteService.password = KeychainHelper.load(account: keychainKey("password", id: remoteService.id))
+
+            if let localIdx = merged.firstIndex(where: { $0.id == remoteService.id }) {
+                let local = merged[localIdx]
+                let useRemote: Bool
+                switch (local.lastChecked, remoteService.lastChecked) {
+                case (.none, .some): useRemote = true
+                case (.some, .none): useRemote = false
+                case (.some(let l), .some(let r)): useRemote = r > l
+                case (.none, .none): useRemote = false
+                }
+                if useRemote {
+                    var updated = remoteService
+                    updated.status         = local.status
+                    updated.latencyMs      = local.latencyMs
+                    updated.lastChecked    = local.lastChecked
+                    updated.httpStatusCode = local.httpStatusCode
+                    merged[localIdx] = updated
+                }
+            } else {
+                merged.append(remoteService)
+            }
+        }
+        services = merged
+        let sanitized = merged.map { s -> Service in
+            var copy = s; copy.apiKey = nil; copy.username = nil; copy.password = nil; return copy
+        }
+        if let data = try? encoder.encode(sanitized) {
+            defaults.set(data, forKey: key)
+        }
+    }
 
     private func load() {
         // Migrate any data written to UserDefaults.standard before App Group was added

@@ -3,14 +3,10 @@
 <plist version="1.0">
 <dict>
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
-	<string>$(TeamIdentifierPrefix)com.mblieden.peekr</string>
+	<string>$(TeamIdentifierPrefix)net.mohome.peekr</string>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.mblieden.peekr</string>
+		<string>group.net.mohome.peekr</string>
 	</array>
-	<!-- Required for `UNNotificationInterruptionLevel.timeSensitive` used by offline alerts.
-	     Without this, the system silently downgrades the alert to `.active`. -->
-	<key>com.apple.developer.usernotifications.time-sensitive</key>
-	<true/>
 </dict>
 </plist>

@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 
 /// Holds all per-service live display state: ping results, metrics, errors, and checking indicators.
 ///
@@ -157,6 +158,10 @@ final class LiveDataStore: ObservableObject {
         }
     }
 
+    private static let appGroupMetricsFileURL: URL? = {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.net.mohome.peekr")?            .appendingPathComponent("lastKnownMetrics.json")
+    }()
+
     private static let metricsFileURL: URL = {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -185,6 +190,10 @@ final class LiveDataStore: ObservableObject {
         }
         guard let data = try? JSONEncoder().encode(encoded) else { return }
         try? data.write(to: Self.metricsFileURL, options: .atomic)
+        if let url = Self.appGroupMetricsFileURL {
+            try? data.write(to: url, options: .atomic)
+        }
+        WidgetCenter.shared.reloadTimelines(ofKind: "PeekrServiceWidget")
     }
 
     private func loadMetrics() {

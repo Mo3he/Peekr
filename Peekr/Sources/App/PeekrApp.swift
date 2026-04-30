@@ -40,8 +40,8 @@ private final class NotificationResponseHandler: NSObject, UNUserNotificationCen
 
 @main
 struct PeekrApp: App {
-    private let bgTaskID = "com.mblieden.peekr.refresh"
-    private let bgProcessingTaskID = "com.mblieden.peekr.processing"
+    private let bgTaskID = "net.mohome.peekr.refresh"
+    private let bgProcessingTaskID = "net.mohome.peekr.processing"
     private let notifDelegate = NotificationResponseHandler()
 
     /// One HomeViewModel for the whole app. Injected into every Scene so iPhone, iPad,

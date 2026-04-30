@@ -31,10 +31,10 @@ Cloud services skip the TCP/HTTP ping entirely and derive their status from whet
 - Per-service check intervals (30s to 15 min, independent of the global setting)
 
 ### Widgets
-- Home screen: small (overall status) and medium (status breakdown)
-- Lock screen: circular and rectangular
-- Configurable widget: pin any service to a widget and see its live status
-- Widget reads from a shared App Group container (requires paid Apple Developer account; currently reads its own UserDefaults)
+- **Overview widget** (small + medium + lock screen) — overall status summary; medium shows a configurable per-service list
+- **Service widget** (small + medium + lock screen) — pin any service to a widget and see its live status and metrics
+- **Monitor widget** (large) — up to 4 configurable services, each showing live status and up to 6 key metrics
+- All widgets read live data from a shared App Group container and reload automatically when the app refreshes metrics
 
 ### Notifications
 - Background refresh every 15 minutes (interval configurable in Settings)
@@ -60,8 +60,8 @@ Cloud services skip the TCP/HTTP ping entirely and derive their status from whet
 - Onboarding flow on first launch
 
 ### Data
-- Credentials stored securely in the system Keychain (never in UserDefaults or iCloud)
-- iCloud KV sync for the service list across devices (requires paid Apple Developer account)
+- Credentials stored securely in the system Keychain with iCloud Keychain sync enabled, so API keys and passwords are available across your own devices without ever leaving Apple's secure enclave
+- iCloud KV sync for the service list across devices
 - Export services as JSON
 - Export uptime report as a self-contained HTML file
 - Import services from JSON
@@ -111,12 +111,10 @@ Peekr/Sources/
     Integrations/   - One file per service type integration
   AppIntents/       - Siri Shortcuts / App Intents
 
-PeekrWidget/        - WidgetKit extension (overview + configurable service widget)
+PeekrWidget/        - WidgetKit extension (Overview, Service, and Monitor widgets)
 project.yml         - XcodeGen spec (source of truth for the Xcode project)
 Peekr/PrivacyInfo.xcprivacy - Privacy manifest
 ```
-
-Code paths gated by `// PAID_ACCOUNT:` comments (iCloud KV sync, App Group container, entitlement files in `project.yml`) are kept in-tree but commented out — they require an active Apple Developer Program subscription. Until the account is upgraded, the app uses `UserDefaults.standard` and ships per-device only.
 
 ## Adding a New Integration
 

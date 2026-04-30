@@ -54,9 +54,9 @@
 	<dict/>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>com.mblieden.peekr.refresh</string>
-		<string>com.mblieden.peekr.summaryNotification</string>
-		<string>com.mblieden.peekr.processing</string>
+		<string>net.mohome.peekr.refresh</string>
+		<string>net.mohome.peekr.summaryNotification</string>
+		<string>net.mohome.peekr.processing</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
