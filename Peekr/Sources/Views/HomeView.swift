@@ -53,11 +53,15 @@ struct HomeView: View {
                     }
                 }
                 .sheet(item: $addServiceRequest) { req in
-                    AddServiceView(serviceType: req.serviceType) { vm.addService($0) }
+                    AddServiceView(serviceType: req.serviceType,
+                                   prefilledHost: req.prefilledHost,
+                                   prefilledPort: req.prefilledPort) { vm.addService($0) }
                 }
                 .sheet(isPresented: $showServicePicker) {
-                    ServicePickerView { type in
-                        addServiceRequest = AddServiceItem(serviceType: type)
+                    ServicePickerView { type, host, port in
+                        addServiceRequest = AddServiceItem(serviceType: type,
+                                                          prefilledHost: host,
+                                                          prefilledPort: port)
                     }
                 }
                 .sheet(item: $editingService) { service in
@@ -119,7 +123,9 @@ struct HomeView: View {
     @ViewBuilder
     private var serviceList: some View {
         List {
-            if !network.canReachLocal && vm.services.contains(where: \.isLocalNetwork) {
+            if !network.isConnected {
+                noInternetBanner
+            } else if !network.canReachLocal && vm.services.contains(where: \.isLocalNetwork) {
                 networkBanner
             }
             if isSearchActive {
@@ -165,6 +171,23 @@ struct HomeView: View {
     }
 
     // MARK: - Network Banner
+
+    private var noInternetBanner: some View {
+        Section {
+            HStack(spacing: 10) {
+                Image(systemName: "wifi.slash")
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("No Internet Connection")
+                        .font(.subheadline.bold())
+                    Text("All service checks are paused. Shown status is from the last successful check.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
 
     private var networkBanner: some View {
         Section {
@@ -580,6 +603,7 @@ private struct RelativeTimestamp: View {
             .font(.caption)
             .foregroundStyle(.tertiary)
             .monospacedDigit()
+            .lineLimit(1)
             .id(Int(now.timeIntervalSince1970) / 60)
             .onReceive(timer) { now = $0 }
     }

@@ -718,6 +718,10 @@ final class HomeViewModel: ObservableObject {
                             liveEntry.status = baseStatus
                         }
                     } catch {
+                        // If connectivity dropped entirely while the check was in flight,
+                        // preserve last-known status — the failure is the network's fault,
+                        // not the service's.
+                        if !self.network.isConnected { return }
                         // If the network probe says we're not on the local network, preserve
                         // last-known status instead of marking offline — mirrors the behaviour
                         // of non-failover local services that are skipped entirely when off-network.

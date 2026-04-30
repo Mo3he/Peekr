@@ -26,6 +26,25 @@
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_http._tcp</string>
+		<string>_https._tcp</string>
+		<string>_home-assistant._tcp</string>
+		<string>_plexmediaserver._tcp</string>
+		<string>_jellyfin._tcp</string>
+		<string>_unifi._tcp</string>
+		<string>_adguard-home._tcp</string>
+		<string>_portainer._tcp</string>
+		<string>_proxmox._tcp</string>
+		<string>_grafana._tcp</string>
+		<string>_pihole._tcp</string>
+		<string>_sonarr._tcp</string>
+		<string>_radarr._tcp</string>
+		<string>_prowlarr._tcp</string>
+		<string>_overseerr._tcp</string>
+		<string>_nextcloud._tcp</string>
+		<string>_traefik._tcp</string>
+		<string>_immich._tcp</string>
+		<string>_ntfy._tcp</string>
+		<string>_frigate._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Peekr uses the local network to ping your development services.</string>

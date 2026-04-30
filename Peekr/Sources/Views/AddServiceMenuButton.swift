@@ -4,6 +4,10 @@ import SwiftUI
 struct AddServiceItem: Identifiable {
     let id = UUID()
     let serviceType: ServiceType?
+    /// Pre-filled host when the item comes from a network scan. Empty string when not applicable.
+    var prefilledHost: String = ""
+    /// Pre-filled port when the item comes from a network scan. 0 when not applicable.
+    var prefilledPort: Int = 0
 }
 
 /// A standalone Menu button for adding services. Extracted from HomeView/iPadRootView so that

@@ -3,10 +3,13 @@ import SwiftUI
 /// Full-page service picker presented when the user taps "+".
 /// Shows all available service types grouped by category with search.
 struct ServicePickerView: View {
-    let onSelect: (ServiceType?) -> Void
+    /// Called with (serviceType, prefilledHost, prefilledPort). Host and port are empty/0 when
+    /// the user picks from the list manually; they are pre-filled when coming from network scan.
+    let onSelect: (ServiceType?, String, Int) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
-
+    @State private var showDiscovery = false
+    @StateObject private var discovery = NetworkDiscoveryService()
     private var cloudServices: [ServiceType] {
         // Put Claude and Copilot at the bottom since they have limited availability
         let priority: [ServiceType] = [.github]
@@ -51,7 +54,7 @@ struct ServicePickerView: View {
                     Section {
                         Button {
                             dismiss()
-                            onSelect(nil)
+                            onSelect(nil, "", 0)
                         } label: {
                             HStack(spacing: 14) {
                                 ZStack {
@@ -92,6 +95,17 @@ struct ServicePickerView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Scan") {
+                        showDiscovery = true
+                    }
+                }
+            }
+            .sheet(isPresented: $showDiscovery) {
+                ServiceDiscoveryView(discovery: discovery) { type, host, port in
+                    dismiss()
+                    onSelect(type, host, port)
+                }
             }
         }
     }
@@ -99,7 +113,7 @@ struct ServicePickerView: View {
     private func serviceRow(_ type: ServiceType) -> some View {
         Button {
             dismiss()
-            onSelect(type)
+            onSelect(type, "", 0)
         } label: {
             HStack(spacing: 14) {
                 ZStack {

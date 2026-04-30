@@ -46,15 +46,18 @@ struct AddServiceView: View {
         ("1 hour",      3600),
     ]
 
-    init(existing: Service? = nil, serviceType: ServiceType? = nil, onSave: @escaping (Service) -> Void) {
+    init(existing: Service? = nil, serviceType: ServiceType? = nil,
+         prefilledHost: String = "", prefilledPort: Int = 0,
+         onSave: @escaping (Service) -> Void) {
         self.existing    = existing
         self.presetType  = existing == nil ? serviceType : nil
         self.onSave      = onSave
         let preset       = existing == nil ? serviceType : nil
         _name            = State(initialValue: existing?.name ?? preset?.displayName ?? "")
-        _host            = State(initialValue: existing?.host ?? "")
+        _host            = State(initialValue: existing?.host ?? prefilledHost)
         let presetPort   = preset?.isCloudService == true ? 0 : (preset?.defaultPort ?? 0)
-        _port            = State(initialValue: existing.map { String($0.port) } ?? (presetPort > 0 ? String(presetPort) : ""))
+        let effectivePort = prefilledPort > 0 ? prefilledPort : presetPort
+        _port            = State(initialValue: existing.map { String($0.port) } ?? (effectivePort > 0 ? String(effectivePort) : ""))
         _scheme          = State(initialValue: existing?.scheme ?? preset?.defaultScheme ?? .http)
         _group           = State(initialValue: existing?.group ?? "")
         _apiKey          = State(initialValue: existing?.apiKey ?? "")

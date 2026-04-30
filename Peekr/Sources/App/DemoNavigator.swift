@@ -49,7 +49,7 @@ enum DemoNavigator {
         case .summaryNotifications:
             NotificationSchedulesView(vm: vm)
         case .addService:
-            ServicePickerView(onSelect: { _ in })
+            ServicePickerView(onSelect: { _, _, _ in })
         case .settings:
             NavigationStack { SettingsView(vm: vm) }
         case .eventLog:

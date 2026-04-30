@@ -24,11 +24,15 @@ struct iPadRootView: View {
             eventLogPanel
         }
         .sheet(item: $addServiceRequest) { req in
-            AddServiceView(serviceType: req.serviceType) { vm.addService($0) }
+            AddServiceView(serviceType: req.serviceType,
+                           prefilledHost: req.prefilledHost,
+                           prefilledPort: req.prefilledPort) { vm.addService($0) }
         }
         .sheet(isPresented: $showServicePicker) {
-            ServicePickerView { type in
-                addServiceRequest = AddServiceItem(serviceType: type)
+            ServicePickerView { type, host, port in
+                addServiceRequest = AddServiceItem(serviceType: type,
+                                                  prefilledHost: host,
+                                                  prefilledPort: port)
             }
         }
         .sheet(item: $editingService) { svc in
@@ -77,7 +81,9 @@ struct iPadRootView: View {
 
     private var sidebar: some View {
         List(selection: $selectedServiceID) {
-            if !network.canReachLocal && vm.services.contains(where: \.isLocalNetwork) {
+            if !network.isConnected {
+                noInternetBanner
+            } else if !network.canReachLocal && vm.services.contains(where: \.isLocalNetwork) {
                 networkBanner
             }
             if !vm.services.isEmpty {
@@ -160,6 +166,18 @@ struct iPadRootView: View {
 
     private func sidebarRow(service: Service) -> some View {
         iPadSidebarRow(service: service)
+    }
+
+    @ViewBuilder
+    private var noInternetBanner: some View {
+        Section {
+            HStack(spacing: 8) {
+                Image(systemName: "wifi.slash")
+                    .foregroundStyle(.orange)
+                Text("No internet connection - all service checks are paused.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
     }
 
     @ViewBuilder

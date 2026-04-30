@@ -41,6 +41,10 @@ final class NetworkMonitor: ObservableObject {
 
     /// Whether a specific service should be checked right now.
     func canReachService(_ service: Service) -> Bool {
+        // If there is no network path at all, skip every service — checking would just
+        // produce a flood of timeouts that mark everything offline when the real cause
+        // is a dropped connection (airplane mode, VPN failed to connect, etc.).
+        guard isConnected else { return false }
         guard service.isLocalNetwork else { return true }
         // A configured failover host means the service may be reachable via VPN even when
         // the primary local address is unreachable — always attempt so PingService can fall back.

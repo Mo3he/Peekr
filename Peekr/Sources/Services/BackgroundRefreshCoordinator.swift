@@ -103,6 +103,9 @@ enum BackgroundRefreshCoordinator {
                         AppLogger.refresh.info("[BG] \(service.name, privacy: .public) -> \(liveEntry.status.rawValue, privacy: .public) (\(Int(result.latencyMs))ms)")
                         await MainActor.run { LiveDataStore.shared.consecutiveFailures[service.id] = 0 }
                     } catch {
+                        // If connectivity dropped entirely while the check was in flight,
+                        // preserve last-known status.
+                        if !network.isConnected { return }
                         // If the network probe says we're not on the local network, preserve
                         // last-known status instead of marking offline.
                         if service.isLocalNetwork && !network.canReachLocal { return }
