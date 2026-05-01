@@ -235,7 +235,7 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Link(destination: URL(string: "https://mo3he.github.io/Homelab-Service-Monitor/privacy")!) {
+                    Link(destination: URL(string: "https://mo3he.github.io/hsm-privacy/")!) {
                         HStack {
                             Label("Privacy Policy", systemImage: "hand.raised.fill")
                             Spacer()

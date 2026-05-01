@@ -129,6 +129,9 @@ private let _discoveryTCPQueue = DispatchQueue(label: "net.mohome.hsm.tcp", qos:
 ///    by the sweep, it upgrades the raw IP to a human-readable hostname.
 @MainActor
 final class NetworkDiscoveryService: ObservableObject {
+    /// Shared instance so scan results survive sheet dismissal and re-presentation.
+    static let shared = NetworkDiscoveryService()
+
     @Published private(set) var results: [DiscoveredNetworkService] = []
     @Published private(set) var isScanning = false
     /// 0.0–1.0 progress of the TCP sweep phase. Reset to 0 when a new scan starts.
@@ -139,15 +142,18 @@ final class NetworkDiscoveryService: ObservableObject {
     private var mdnsResolvers: [NetServiceResolver] = []
     private let mdnsQueue = DispatchQueue(label: "net.mohome.hsm.discovery.mdns", qos: .userInitiated)
 
-    // URLSession shared across all HTTP verifications. Accepts self-signed certs.
-    private static let session: URLSession = {
+    // Created fresh for each scan so its TLS session tickets don't persist
+    // into PingService connections after the scan ends.
+    private var scanSession: URLSession?
+
+    private static func makeScanSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 2
         config.timeoutIntervalForResource = 3
         return URLSession(configuration: config,
                           delegate: InsecureSessionDelegate(),
                           delegateQueue: nil)
-    }()
+    }
 
     // Shared queue for all TCP probe callbacks - avoids spawning thousands of DispatchQueues.
     // Defined as a file-private global above the class to avoid @MainActor isolation issues.
@@ -162,7 +168,7 @@ final class NetworkDiscoveryService: ObservableObject {
     /// (/) which always returns the app name in HTML without any credentials.
     static let probes: [ServiceProbe] = [
         ServiceProbe(port: 8123,  serviceType: .homeAssistant, scheme: "http",
-                     verifyPath: "/api/",                 verifySignal: "API running"),
+                     verifyPath: "/manifest.json",          verifySignal: "Home Assistant"),
         ServiceProbe(port: 3000,  serviceType: .grafana,       scheme: "http",
                      verifyPath: "/api/health",           verifySignal: "database"),
         ServiceProbe(port: 9000,  serviceType: .portainer,     scheme: "http",
@@ -248,6 +254,7 @@ final class NetworkDiscoveryService: ObservableObject {
 
     func startScan() {
         stopScan()
+        scanSession = Self.makeScanSession()
         results = []
         isScanning = true
         startMDNS()
@@ -266,6 +273,11 @@ final class NetworkDiscoveryService: ObservableObject {
         mdnsBrowsers = []
         mdnsResolvers.forEach { $0.stop() }
         mdnsResolvers = []
+        // Invalidate the scan session so its TLS session tickets are discarded.
+        // This prevents the insecure-cert session from contaminating PingService
+        // connections to the same hosts after the scan completes.
+        scanSession?.invalidateAndCancel()
+        scanSession = nil
         isScanning = false
         scanProgress = 0
     }
@@ -355,12 +367,13 @@ final class NetworkDiscoveryService: ObservableObject {
         guard !Task.isCancelled, !openPairs.isEmpty else { return }
 
         // Phase 2 — HTTP verify open ports concurrently.
+        let session = await self.scanSession ?? Self.makeScanSession()
         await withTaskGroup(of: Void.self) { group in
             for (host, port) in openPairs {
                 guard let probes = portToProbes[port] else { continue }
                 for probe in probes {
                     group.addTask {
-                        guard await NetworkDiscoveryService.httpVerify(host: host, probe: probe) else { return }
+                        guard await NetworkDiscoveryService.httpVerify(host: host, probe: probe, session: session) else { return }
                         await MainActor.run {
                             self.addResult(name: probe.serviceType.displayName, host: host, port: port, serviceType: probe.serviceType)
                         }
@@ -498,7 +511,7 @@ final class NetworkDiscoveryService: ObservableObject {
 
     /// GETs the probe's verify path and checks the response contains the expected signal.
     /// Returns false for network errors, timeouts, or missing signal.
-    nonisolated private static func httpVerify(host: String, probe: ServiceProbe) async -> Bool {
+    nonisolated private static func httpVerify(host: String, probe: ServiceProbe, session: URLSession) async -> Bool {
         guard let url = URL(string: "\(probe.scheme)://\(host):\(probe.port)\(probe.verifyPath)") else {
             return false
         }

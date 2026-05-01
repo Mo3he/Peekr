@@ -122,7 +122,11 @@ final class ServiceStore: ObservableObject {
         // Write to UserDefaults (App Group suite when entitlements are active - see PAID_ACCOUNT above)
         defaults.set(data, forKey: key)
         // Keep the TLS-trust registry in sync so sessions know which hosts are user-trusted.
+        // Also invalidate URLSession instances so iOS cannot resume a cached TLS session
+        // from a time when allowSelfSignedCert was enabled, bypassing the auth challenge.
         InsecureTrustRegistry.shared.reload(from: services)
+        Task { await PingService.shared.resetSessions() }
+        IntegrationHTTP.resetSession()
         icloud.set(data, forKey: key)
         icloud.synchronize()
     }

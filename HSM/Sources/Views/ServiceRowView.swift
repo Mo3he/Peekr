@@ -7,6 +7,11 @@ struct ServiceRowView: View {
     private var liveEntry: ServiceLiveData? { live.liveData[service.id] }
     private var metrics: [ServiceMetric] { live.visibleMetrics(for: service.id) }
     private var effectiveStatus: ServiceStatus { live.effectiveStatus(for: service) }
+    private var certError: String? {
+        guard effectiveStatus == .offline, let msg = live.metricsError[service.id],
+              msg.contains("Certificate") else { return nil }
+        return msg
+    }
 
     private var displayLatency: Double?     { liveEntry?.latencyMs      ?? service.latencyMs }
     private var displayCode: Int?           { liveEntry?.httpStatusCode  ?? service.httpStatusCode }
@@ -108,6 +113,12 @@ struct ServiceRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+            }
+            if let hint = certError {
+                Label(hint, systemImage: "lock.trianglebadge.exclamationmark")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .lineLimit(2)
             }
         }
     }

@@ -12,25 +12,30 @@ actor PingService {
     static let shared = PingService()
     private init() {}
 
-    private let session: URLSession = {
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 5
-        config.timeoutIntervalForResource = 5
-        return URLSession(configuration: config,
-                          delegate: InsecureTrustRegistry.shared,
-                          delegateQueue: nil)
-    }()
+    private var session: URLSession = PingService.makeSession()
 
     // Separate session for failover attempts so timed-out primary connections
     // cannot contaminate the failover's connection pool.
-    private let failoverSession: URLSession = {
+    private var failoverSession: URLSession = PingService.makeSession()
+
+    private static func makeSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 5
         config.timeoutIntervalForResource = 5
         return URLSession(configuration: config,
                           delegate: InsecureTrustRegistry.shared,
                           delegateQueue: nil)
-    }()
+    }
+
+    /// Discards the current TLS sessions and creates fresh ones.
+    /// Called whenever the cert-trust settings change so iOS cannot resume a
+    /// previously-trusted TLS session and bypass the auth challenge.
+    func resetSessions() {
+        session.invalidateAndCancel()
+        failoverSession.invalidateAndCancel()
+        session = PingService.makeSession()
+        failoverSession = PingService.makeSession()
+    }
 
     func check(_ service: Service, timeout: Double = 5) async throws -> CheckResult {
         AppLogger.ping.debug("Checking \(service.name, privacy: .public) (\(service.host, privacy: .public))")

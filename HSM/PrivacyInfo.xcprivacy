@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Peekr does not track users and does not send data to third parties -->
+    <!-- Homelab Service Monitor does not track users and does not send data to third parties -->
     <key>NSPrivacyTracking</key>
     <false/>
 
@@ -13,7 +13,7 @@
     <key>NSPrivacyCollectedDataTypes</key>
     <array/>
 
-    <!-- Required-reason APIs used by Peekr -->
+    <!-- Required-reason APIs used by Homelab Service Monitor -->
     <key>NSPrivacyAccessedAPITypes</key>
     <array>
         <!-- UserDefaults: used to persist service list and settings on-device -->

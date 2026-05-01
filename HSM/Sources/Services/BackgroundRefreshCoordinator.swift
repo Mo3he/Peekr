@@ -130,7 +130,19 @@ enum BackgroundRefreshCoordinator {
                         liveEntry.status = .offline
                         newLiveData[service.id] = liveEntry
                         newMetrics[service.id]  = []
-                        newErrors.removeValue(forKey: service.id)
+                        let certError: Bool
+                        if let urlError = error as? URLError,
+                           (urlError.code == .serverCertificateUntrusted || urlError.code == .serverCertificateHasUnknownRoot),
+                           !service.allowSelfSignedCert {
+                            certError = true
+                        } else {
+                            certError = false
+                        }
+                        if certError {
+                            newErrors[service.id] = "Certificate not trusted. Enable \"Allow Self-Signed Certificate\" in Edit."
+                        } else {
+                            newErrors.removeValue(forKey: service.id)
+                        }
                         historyStore.record(serviceID: service.id, status: .offline, latencyMs: nil)
                         uptimeStore.record(serviceID: service.id, status: .offline)
                         pendingStoreUpdates.append(merged(service: service, liveEntry: liveEntry))

@@ -9,7 +9,7 @@ struct ServicePickerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @State private var showDiscovery = false
-    @StateObject private var discovery = NetworkDiscoveryService()
+    @ObservedObject private var discovery = NetworkDiscoveryService.shared
     private var cloudServices: [ServiceType] {
         // Put Claude and Copilot at the bottom since they have limited availability
         let priority: [ServiceType] = [.github]

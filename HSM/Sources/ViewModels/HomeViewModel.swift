@@ -252,7 +252,8 @@ final class HomeViewModel: ObservableObject {
                 live.setLive(ServiceLiveData(status: .offline, lastChecked: updated.lastChecked), for: service.id)
                 store.update(updated)
                 live.setMetrics([], for: service.id)
-                live.setError(nil, for: service.id)
+                let certError = isTLSCertError(error) && !service.allowSelfSignedCert
+                live.setError(certError ? "Certificate not trusted. Enable \"Allow Self-Signed Certificate\" in Edit." : nil, for: service.id)
                 recordTransition(previousStatus: previousStatus, service: updated)
                 historyStore.record(serviceID: service.id, status: .offline, latencyMs: nil)
                 uptimeStore.record(serviceID: service.id, status: .offline)
@@ -325,6 +326,15 @@ final class HomeViewModel: ObservableObject {
                 live.liveData[updated.id]?.status = .degraded
             }
         }
+    }
+
+    // MARK: - Helpers
+
+    /// Returns true when an error is a TLS certificate validation failure (e.g. self-signed cert).
+    private func isTLSCertError(_ error: Error) -> Bool {
+        guard let urlError = error as? URLError else { return false }
+        return urlError.code == .serverCertificateUntrusted ||
+               urlError.code == .serverCertificateHasUnknownRoot
     }
 
     // MARK: - Mutations

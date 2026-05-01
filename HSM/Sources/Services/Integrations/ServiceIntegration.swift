@@ -89,12 +89,22 @@ extension ServiceIntegration {
 /// Single ephemeral URLSession shared by all integrations. Mirrors the configuration
 /// PingService uses so transport behavior (timeouts, redirects, no caching) is consistent.
 enum IntegrationHTTP {
-    static let session: URLSession = {
+    private static var _session: URLSession = IntegrationHTTP.makeSession()
+    static var session: URLSession { _session }
+
+    private static func makeSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 8
         config.timeoutIntervalForResource = 12
         return URLSession(configuration: config,
                           delegate: InsecureTrustRegistry.shared,
                           delegateQueue: nil)
-    }()
+    }
+
+    /// Discards cached TLS sessions and creates a fresh one. Called alongside
+    /// PingService.resetSessions() when cert-trust settings change.
+    static func resetSession() {
+        _session.invalidateAndCancel()
+        _session = makeSession()
+    }
 }

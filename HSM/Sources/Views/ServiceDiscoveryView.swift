@@ -24,7 +24,7 @@ struct ServiceDiscoveryView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if filteredResults.isEmpty {
+                if filteredResults.isEmpty || discovery.isScanning {
                     emptyState
                 } else {
                     resultsList
@@ -144,17 +144,6 @@ struct ServiceDiscoveryView: View {
                 }
             }
             .buttonStyle(.plain)
-        }
-        .overlay(alignment: .bottom) {
-            if discovery.isScanning {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text(discovery.scanProgress > 0 ? "Scanning... \(Int(discovery.scanProgress * 100))%" : "Scanning...")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.bottom, 12)
-            }
         }
     }
 }
