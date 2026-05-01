@@ -244,7 +244,7 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Link(destination: URL(string: "https://apps.apple.com/app/id000000000?action=write-review")!) {
+                    Link(destination: URL(string: "https://apps.apple.com/app/id6765596012?action=write-review")!) {
                         HStack {
                             Label("Rate HSM", systemImage: "star.fill")
                             Spacer()
