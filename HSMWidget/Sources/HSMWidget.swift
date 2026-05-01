@@ -101,14 +101,17 @@ struct ServiceEntity: AppEntity {
     }
 }
 
-struct ServiceEntityQuery: EntityQuery {
+struct ServiceEntityQuery: EntityQuery, EnumerableEntityQuery {
     func entities(for identifiers: [String]) async throws -> [ServiceEntity] {
-        allEntities().filter { identifiers.contains($0.id) }
+        loadAllEntities().filter { identifiers.contains($0.id) }
     }
     func suggestedEntities() async throws -> [ServiceEntity] {
-        allEntities()
+        loadAllEntities()
     }
-    private func allEntities() -> [ServiceEntity] {
+    func allEntities() async throws -> [ServiceEntity] {
+        loadAllEntities()
+    }
+    private func loadAllEntities() -> [ServiceEntity] {
         let ud = UserDefaults(suiteName: "group.net.mohome.hsm") ?? .standard
         guard let data = ud.data(forKey: servicesKey),
               let services = try? JSONDecoder().decode([WidgetService].self, from: data)
@@ -269,7 +272,16 @@ private func loadMetrics(for serviceId: String) -> [WidgetMetric] {
           let data = try? Data(contentsOf: dir.appendingPathComponent("lastKnownMetrics.json")),
           let decoded = try? JSONDecoder().decode([String: [WidgetMetric]].self, from: data)
     else { return [] }
-    return decoded[serviceId] ?? []
+    let all = decoded[serviceId] ?? []
+    let ud = UserDefaults(suiteName: "group.net.mohome.hsm") ?? .standard
+    if let hiddenData = ud.data(forKey: "hsm.hiddenMetrics"),
+       let hiddenMap = try? JSONDecoder().decode([String: [String]].self, from: hiddenData) {
+        let hiddenLabels = Set(hiddenMap[serviceId] ?? [])
+        if !hiddenLabels.isEmpty {
+            return all.filter { !hiddenLabels.contains($0.label) }
+        }
+    }
+    return all
 }
 
 private func iconFor(type: String?) -> String {

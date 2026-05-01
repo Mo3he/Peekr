@@ -194,6 +194,7 @@ final class LiveDataStore: ObservableObject {
             try? data.write(to: url, options: .atomic)
         }
         WidgetCenter.shared.reloadTimelines(ofKind: "HSMServiceWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: "HSMMonitorWidget")
     }
 
     private func loadMetrics() {

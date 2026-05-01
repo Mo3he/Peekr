@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import WidgetKit
 import os
 
 /// Live display state for a service. Kept separate from the persisted `Service` model so that
@@ -501,6 +502,7 @@ final class HomeViewModel: ObservableObject {
             hiddenMetricsCache = newValue
             guard let data = try? JSONEncoder().encode(newValue) else { return }
             UserDefaults.standard.set(data, forKey: hiddenMetricsKey)
+            UserDefaults(suiteName: "group.net.mohome.hsm")?.set(data, forKey: hiddenMetricsKey)
         }
     }
 
@@ -525,6 +527,9 @@ final class HomeViewModel: ObservableObject {
         hiddenMetricsStore = hm
         // Sync to LiveDataStore so ServiceRowView picks it up immediately
         live.hiddenMetricLabels[serviceID] = set
+        // Reload widget timelines so they pick up the new hidden state immediately
+        WidgetCenter.shared.reloadTimelines(ofKind: "HSMMonitorWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: "HSMServiceWidget")
     }
 
     // MARK: - Metric alert rules
@@ -736,10 +741,10 @@ final class HomeViewModel: ObservableObject {
                         // last-known status instead of marking offline — mirrors the behaviour
                         // of non-failover local services that are skipped entirely when off-network.
                         if service.isLocalNetwork && !self.network.canReachLocal { return }
-                        // A cancelled error is transient (TCP reset, iOS killed the task) —
-                        // not a genuine outage. Skip the update entirely.
-                        if (error as? URLError)?.code == .cancelled {
-                            AppLogger.refresh.info("[BG] \(service.name, privacy: .public) ping cancelled (transient), preserving previous status")
+                        // Cancelled or connection-lost errors are transient — iOS resets open
+                        // TCP connections when suspending the app. Not a genuine outage.
+                        if let ue = error as? URLError, ue.code == .cancelled || ue.code == .networkConnectionLost {
+                            AppLogger.refresh.info("[BG] \(service.name, privacy: .public) ping cancelled/reset (transient), preserving previous status")
                             return
                         }
                         liveEntry.status = .offline

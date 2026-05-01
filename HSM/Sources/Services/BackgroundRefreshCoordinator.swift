@@ -109,10 +109,10 @@ enum BackgroundRefreshCoordinator {
                         // If the network probe says we're not on the local network, preserve
                         // last-known status instead of marking offline.
                         if service.isLocalNetwork && !network.canReachLocal { return }
-                        // A cancelled error is transient (TCP reset, iOS killed the task) —
-                        // not a genuine outage. Skip the update entirely.
-                        if (error as? URLError)?.code == .cancelled {
-                            AppLogger.refresh.info("[BG] \(service.name, privacy: .public) ping cancelled (transient), preserving previous status")
+                        // Cancelled or connection-lost errors are transient — iOS resets open
+                        // TCP connections when suspending the app. Not a genuine outage.
+                        if let ue = error as? URLError, ue.code == .cancelled || ue.code == .networkConnectionLost {
+                            AppLogger.refresh.info("[BG] \(service.name, privacy: .public) ping cancelled/reset (transient), preserving previous status")
                             return
                         }
                         let failures = await MainActor.run {

@@ -32,10 +32,12 @@ final class NetworkMonitor: ObservableObject {
         if userOverride { return true }
         if likelyVPN { return true }
         if !isOnWiFi { return false }
-        // While probing, keep showing the last-known result to avoid UI flashing.
-        // Only block if we have never probed or the last probe was negative.
-        if isProbing { return isHomeNetwork ?? false }
-        guard let home = isHomeNetwork else { return false }
+        // While probing (or before first probe), be optimistic so we don't flash the banner
+        // or skip local services in background tasks before the probe has had a chance to run.
+        // If we're genuinely on a different network, the ping will fail and the error handler
+        // preserves last-known status once the probe result is available.
+        if isProbing { return isHomeNetwork ?? true }
+        guard let home = isHomeNetwork else { return true }
         return home
     }
 
