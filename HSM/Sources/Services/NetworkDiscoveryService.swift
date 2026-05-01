@@ -367,7 +367,7 @@ final class NetworkDiscoveryService: ObservableObject {
         guard !Task.isCancelled, !openPairs.isEmpty else { return }
 
         // Phase 2 — HTTP verify open ports concurrently.
-        let session = await self.scanSession ?? Self.makeScanSession()
+        let session = self.scanSession ?? Self.makeScanSession()
         await withTaskGroup(of: Void.self) { group in
             for (host, port) in openPairs {
                 guard let probes = portToProbes[port] else { continue }
