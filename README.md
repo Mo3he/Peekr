@@ -1,4 +1,4 @@
-# Peekr
+# Homelab Service Monitor
 
 A native iOS/iPadOS/macOS app for monitoring your self-hosted homelab services and cloud API quotas. Built with SwiftUI, no external dependencies.
 
@@ -67,7 +67,7 @@ Cloud services skip the TCP/HTTP ping entirely and derive their status from whet
 - Import services from JSON
 
 ### Developer
-- Siri Shortcuts integration: "Refresh Peekr", "Is [service] online in Peekr"
+- Siri Shortcuts integration: "Refresh Homelab Service Monitor", "Is [service] online in Homelab Service Monitor"
 - Privacy manifest (PrivacyInfo.xcprivacy) declaring all required-reason API usage
 - Export compliance declared (ITSAppUsesNonExemptEncryption = false)
 
@@ -84,20 +84,20 @@ Cloud services skip the TCP/HTTP ping entirely and derive their status from whet
 brew install xcodegen
 
 # Clone and generate the project
-git clone https://github.com/Mo3he/Peekr.git
-cd Peekr
+git clone https://github.com/Mo3he/Homelab-Service-Monitor.git
+cd Homelab-Service-Monitor
 xcodegen generate --spec project.yml
 
 # Open in Xcode
-open Peekr.xcodeproj
+open HSM.xcodeproj
 ```
 
-Build and run on a simulator or device. The widget extension is the `PeekrWidget` scheme.
+Build and run on a simulator or device. The widget extension is the `HSMWidget` scheme.
 
 ## Project Structure
 
 ```
-Peekr/Sources/
+HSM/Sources/
   App/              - Entry point, background refresh registration, notification routing
   Models/           - Service, ServiceType, ServiceStatus, UptimeStore, StatusHistory,
                       MetricAlertStore, MetricHistoryStore, MetricSummarySchedule
@@ -111,9 +111,9 @@ Peekr/Sources/
     Integrations/   - One file per service type integration
   AppIntents/       - Siri Shortcuts / App Intents
 
-PeekrWidget/        - WidgetKit extension (Overview, Service, and Monitor widgets)
+HSMWidget/        - WidgetKit extension (Overview, Service, and Monitor widgets)
 project.yml         - XcodeGen spec (source of truth for the Xcode project)
-Peekr/PrivacyInfo.xcprivacy - Privacy manifest
+HSM/PrivacyInfo.xcprivacy - Privacy manifest
 ```
 
 ## Adding a New Integration

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Peekr – Privacy Policy</title>
+  <title>Homelab Service Monitor – Privacy Policy</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -23,22 +23,22 @@
 </head>
 <body>
 
-  <h1>Peekr Privacy Policy</h1>
+  <h1>Homelab Service Monitor Privacy Policy</h1>
   <p class="updated">Last updated: April 30, 2026</p>
 
-  <p>Peekr is a service monitoring app for your self-hosted homelab services and cloud API accounts.
+  <p>Homelab Service Monitor is a service monitoring app for your self-hosted homelab services and cloud API accounts.
   This policy explains what data the app uses, where it stays, and what it never does.</p>
 
-  <h2>What Peekr does not do</h2>
+  <h2>What Homelab Service Monitor does not do</h2>
   <ul>
-    <li>Peekr does not collect, transmit, or sell any personal data.</li>
-    <li>Peekr does not include analytics, crash-reporting SDKs, or advertising frameworks.</li>
-    <li>Peekr does not create or require a user account.</li>
-    <li>Peekr does not track you across apps or websites.</li>
+    <li>Homelab Service Monitor does not collect, transmit, or sell any personal data.</li>
+    <li>Homelab Service Monitor does not include analytics, crash-reporting SDKs, or advertising frameworks.</li>
+    <li>Homelab Service Monitor does not create or require a user account.</li>
+    <li>Homelab Service Monitor does not track you across apps or websites.</li>
   </ul>
 
   <h2>What data the app stores, and where</h2>
-  <p>Everything Peekr stores stays on your device or within your personal iCloud account:</p>
+  <p>Everything Homelab Service Monitor stores stays on your device or within your personal iCloud account:</p>
   <ul>
     <li><strong>Service configuration</strong> (hostnames, ports, service types, display names) is saved
     on your device. When iCloud sync is enabled, this list is also stored in your personal
@@ -47,55 +47,55 @@
     <li><strong>Credentials</strong> (API keys, usernames, passwords) are stored exclusively in the
     iOS/macOS Keychain. iCloud Keychain sync is enabled by default so that credentials are available
     across your own Apple devices. This sync is handled entirely by Apple's Keychain infrastructure
-    under your personal Apple ID and is never accessible to Peekr's developers or any third party.
+    under your personal Apple ID and is never accessible to Homelab Service Monitor's developers or any third party.
     Credentials are <em>never</em> stored in plain UserDefaults, iCloud Key-Value Store, or any
-    Peekr-controlled storage.</li>
+    Homelab Service Monitor-controlled storage.</li>
     <li><strong>Status history and metric history</strong> are kept on your device only and are
     never synced to iCloud or any server.</li>
     <li><strong>Notification schedules and alert rules</strong> are stored on-device only.</li>
   </ul>
 
   <h2>iCloud sync</h2>
-  <p>Peekr uses iCloud in two ways, both scoped entirely to your personal Apple ID:</p>
+  <p>Homelab Service Monitor uses iCloud in two ways, both scoped entirely to your personal Apple ID:</p>
   <ul>
     <li><strong>Service list</strong> — service configuration (names, hostnames, ports, and service
     types) is stored in Apple’s iCloud Key-Value Store so it stays consistent across your own
     devices. iCloud sync can be disabled at any time in iOS Settings &rsaquo; Apple ID &rsaquo; iCloud.</li>
     <li><strong>Credentials</strong> — API keys and passwords are stored in the system Keychain with
     iCloud Keychain sync enabled. This means credentials are available on all your signed-in Apple
-    devices without Peekr ever seeing or transmitting them — Apple’s Keychain infrastructure handles
+    devices without Homelab Service Monitor ever seeing or transmitting them — Apple’s Keychain infrastructure handles
     the sync end-to-end.</li>
   </ul>
-  <p>Peekr does not have access to any iCloud data belonging to other users.</p>
+  <p>Homelab Service Monitor does not have access to any iCloud data belonging to other users.</p>
 
   <h2>Network access</h2>
-  <p>Peekr makes outbound HTTP/HTTPS/TCP connections exclusively to the service addresses
+  <p>Homelab Service Monitor makes outbound HTTP/HTTPS/TCP connections exclusively to the service addresses
   <em>you</em> enter. These are connections from your device directly to your own infrastructure
   or the cloud APIs you configure (such as GitHub or Anthropic). No traffic is routed through
-  any Peekr server because no Peekr server exists.</p>
+  any Homelab Service Monitor server because no Homelab Service Monitor server exists.</p>
 
   <h2>Self-signed certificates</h2>
-  <p>For services running on your local network with self-signed TLS certificates, Peekr provides
+  <p>For services running on your local network with self-signed TLS certificates, Homelab Service Monitor provides
   an opt-in "Allow self-signed certificate" toggle per service. This is disabled by default and
   only bypasses TLS validation for the specific host you enable it on. It has no effect on any
   other connection.</p>
 
   <h2>Background refresh</h2>
-  <p>Peekr can check your services in the background using iOS Background App Refresh. These
+  <p>Homelab Service Monitor can check your services in the background using iOS Background App Refresh. These
   checks connect only to the service addresses you have configured and produce local notifications
   on your device. No data leaves your device as a result of background refresh.</p>
 
   <h2>Notifications</h2>
-  <p>Peekr sends local notifications only (generated on your device). There is no push notification
+  <p>Homelab Service Monitor sends local notifications only (generated on your device). There is no push notification
   server. Notifications require your explicit permission and can be disabled in iOS Settings at
   any time.</p>
 
   <h2>Children</h2>
-  <p>Peekr does not knowingly collect any information from anyone, including children under 13.</p>
+  <p>Homelab Service Monitor does not knowingly collect any information from anyone, including children under 13.</p>
 
   <h2>Changes to this policy</h2>
   <p>If this policy changes, the updated version will be posted at this URL with a revised date.
-  Because Peekr collects no data, changes are expected to be minor and administrative in nature.</p>
+  Because Homelab Service Monitor collects no data, changes are expected to be minor and administrative in nature.</p>
 
   <h2>Contact</h2>
   <p>Questions about this policy can be sent to

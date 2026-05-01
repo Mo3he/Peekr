@@ -1,11 +1,11 @@
 # App Store Snapshot Workflow
 
-How we capture App Store screenshots for Peekr. Treat this as a runbook — pick up
+How we capture App Store screenshots for Homelab Service Monitor. Treat this as a runbook — pick up
 mid-flow if a session ends before all shots are done.
 
 ## Current state (2026-04-25)
 
-- `DemoMode.isEnabled = true` in [DemoMode.swift](../Peekr/Sources/App/DemoMode.swift). **Must flip to `false` before shipping.**
+- `DemoMode.isEnabled = true` in [DemoMode.swift](../HSM/Sources/App/DemoMode.swift). **Must flip to `false` before shipping.**
 - Booted simulator: iPhone 17 Pro Max (renders at 1320×2868 = Apple's 6.9" requirement).
 - 10 raw PNGs captured in `Screenshots/sim/` (`iphone-01-home.png` … `iphone-10-alerts.png`).
 - Curated/named copies in `Screenshots/` (`01-…jpeg` … `08-…jpeg`) are the carry-over set; replace them from the sim PNGs once we're happy with the new captures.
@@ -18,15 +18,15 @@ for App Store Connect.
 
 ## Capture loop
 
-Bundle id: `com.mblieden.peekr`. Booted UDID lives in `xcrun simctl list devices booted`.
+Bundle id: `net.mohome.hsm`. Booted UDID lives in `xcrun simctl list devices booted`.
 
 ```sh
 UDID=$(xcrun simctl list devices booted | awk -F'[()]' '/Booted/ {print $2; exit}')
-BUNDLE=com.mblieden.peekr
+BUNDLE=net.mohome.hsm
 
 # 1. Build & install (only when code changed)
-xcodebuild -scheme Peekr -destination "id=$UDID" -configuration Debug build
-APP=$(find ~/Library/Developer/Xcode/DerivedData -name Peekr.app -path "*Debug-iphonesimulator*" | head -1)
+xcodebuild -scheme HSM -destination "id=$UDID" -configuration Debug build
+APP=$(find ~/Library/Developer/Xcode/DerivedData -name HSM.app -path "*Debug-iphonesimulator*" | head -1)
 xcrun simctl install "$UDID" "$APP"
 
 # 2. Launch into a specific demo screen
@@ -34,7 +34,7 @@ xcrun simctl install "$UDID" "$APP"
 #    home | serviceDetail | systemHealth | metricDetail | metricAlertConfig
 #    summaryNotifications | addService | settings | eventLog | metricAlertsList
 xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null
-xcrun simctl launch "$UDID" "$BUNDLE" -peekr.demoScreen home
+xcrun simctl launch "$UDID" "$BUNDLE" -hsm.demoScreen home
 sleep 2  # let the seed + render settle
 
 # 3. Capture
@@ -88,7 +88,7 @@ sips -s format jpeg -s formatOptions 90 \
 No `simctl` on Mac. Launch the built `.app` directly, capture the window via `screencapture -l <windowID> -o` (no shadow), then pad to 2880×1800 with `sips --padToHeightWidth`.
 
 ```sh
-APP="$(find ~/Library/Developer/Xcode/DerivedData/Peekr-* -name Peekr.app -path '*Debug-maccatalyst*' -not -path '*Index.noindex*' | head -1)"
+APP="$(find ~/Library/Developer/Xcode/DerivedData/HSM-* -name HSM.app -path '*Debug-maccatalyst*' -not -path '*Index.noindex*' | head -1)"
 OUT=/path/to/Screenshots/sim-mac
 mkdir -p "$OUT"
 
@@ -96,12 +96,12 @@ get_win_id() {
   swift -e '
 import CoreGraphics
 let wins = CGWindowListCopyWindowInfo([.optionOnScreenOnly,.excludeDesktopElements], kCGNullWindowID) as! [[String:Any]]
-for w in wins { if let o = w["kCGWindowOwnerName"] as? String, o.contains("Peekr") { print(w["kCGWindowNumber"]!); break } }
+for w in wins { if let o = w["kCGWindowOwnerName"] as? String, o.contains("HSM") { print(w["kCGWindowNumber"]!); break } }
 ' 2>/dev/null
 }
 
-pkill -f "MacOS/Peekr" 2>/dev/null; sleep 1
-open "$APP" --args -peekr.demoScreen home
+pkill -f "MacOS/HSM" 2>/dev/null; sleep 1
+open "$APP" --args -hsm.demoScreen home
 sleep 4
 WID=$(get_win_id)
 screencapture -l "$WID" -o "$OUT/raw.png"
@@ -114,7 +114,7 @@ Repeat for each screen using the same screen names as the iPhone loop. Window pa
 
 
 App Store Connect requires screenshots for **each device class** the app declares.
-Peekr supports iPhone, iPad, and Mac (Catalyst).
+Homelab Service Monitor supports iPhone, iPad, and Mac (Catalyst).
 
 Re-run the capture loop on each simulator below. Same DemoMode/DemoNavigator wiring,
 just a different `UDID`. Flip `DemoMode.isEnabled` back to `true` for the run, then
@@ -128,7 +128,7 @@ back to `false` before committing.
 
 For iPad, change the booted device and adjust the `UDID` line; everything else
 works as-is. Mac Catalyst can't be driven by `simctl` — launch the app on the Mac
-desktop with the same `-peekr.demoScreen` arg via `open -a Peekr.app --args -peekr.demoScreen home`
+desktop with the same `-hsm.demoScreen` arg via `open -a HSM.app --args -hsm.demoScreen home`
 and screenshot the window with `screencapture -l$(window-id) ...` or `Cmd+Shift+4 → Space → click`.
 
 Once captured, follow the same `sips` promote step into named JPEGs but with a
