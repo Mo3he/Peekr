@@ -36,6 +36,7 @@ enum IntegrationProvider {
         case .claude:        return ClaudeIntegration()
         case .copilot:       return CopilotIntegration()
         case .ugreenNas:     return UGreenNASIntegration()
+        case .synology:      return SynologyIntegration()
         default:             return GenericIntegration()
         }
     }

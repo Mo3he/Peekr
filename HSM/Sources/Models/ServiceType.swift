@@ -28,6 +28,7 @@ enum ServiceType: String, Codable, CaseIterable {
     case frigate         = "frigate"
     case ntfy            = "ntfy"
     case ugreenNas       = "ugreen_nas"
+    case synology        = "synology"
     case claude          = "claude"
     case copilot         = "copilot"
     case generic         = "generic"
@@ -60,8 +61,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .paperless:      return "Paperless-ngx"
         case .frigate:        return "Frigate"
         case .ntfy:           return "ntfy"
-        case .ugreenNas:      return "UGREEN NAS"
-        case .claude:         return "Claude"
+        case .ugreenNas:      return "UGREEN NAS"        case .synology:      return "Synology NAS"        case .claude:         return "Claude"
         case .copilot:        return "GitHub Copilot"
         case .generic:        return "Generic"
         }
@@ -106,6 +106,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .frigate:     return .none
         case .ntfy:        return .none
         case .ugreenNas:     return .credentials
+        case .synology:      return .credentials
         default:           return .none
         }
     }
@@ -127,6 +128,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .immich:        return "API Key"
         case .paperless:     return "API Token"
         case .ugreenNas:     return "One-Time Code"
+        case .synology:      return "One-Time Code"
         default:             return "API Key"
         }
     }
@@ -159,6 +161,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .vaultwarden:   return "Admin panel token set during server setup."
         case .immich:        return "User Settings → API Keys → New API Key"
         case .paperless:     return "Settings → API → Generate Token"
+        case .synology:      return "If 2FA is enabled on your account, open your authenticator app and enter the current 6-digit code. HSM registers as a trusted device so you only need to do this once."
         default:             return nil
         }
     }
@@ -194,6 +197,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .unifi:         return "Use your Unifi Controller login credentials."
         case .nextcloud:     return "Use your Nextcloud username and an app password (Settings → Security → Devices & sessions)."
         case .ugreenNas:     return "Use your UGOS Pro login credentials. If 2FA is enabled, open your authenticator app and enter the current 6-digit code. It is only needed once - after that HSM logs in with just your username and password."
+        case .synology:      return "Use your DSM admin credentials. If 2FA is enabled, enter the current OTP code in the One-Time Code field - HSM registers as a trusted device so you only need it once."
         default:             return nil
         }
     }
@@ -227,6 +231,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .frigate:       return "video.fill"
         case .ntfy:          return "bell.fill"
         case .ugreenNas:      return "externaldrive.fill"
+        case .synology:      return "externaldrive.connected.to.line.below.fill"
         case .claude:        return "sparkle"
         case .copilot:       return "chevron.left.forwardslash.chevron.right"
         case .generic:       return "server.rack"
@@ -262,6 +267,7 @@ enum ServiceType: String, Codable, CaseIterable {
         case .frigate:       return 5000
         case .ntfy:          return 80
         case .ugreenNas:      return 9443
+        case .synology:      return 5000
         case .claude:        return 443
         case .copilot:       return 443
         case .generic:       return 80
@@ -309,6 +315,7 @@ enum ServiceType: String, Codable, CaseIterable {
         if n.contains("claude")         { return .claude }
         if n.contains("copilot")        { return .copilot }
         if n.contains("ugreen") || n.contains("ugos") || n.contains("ugnas") { return .ugreenNas }
+        if n.contains("synology") || n.contains("diskstation") { return .synology }
         return .generic
     }
 }

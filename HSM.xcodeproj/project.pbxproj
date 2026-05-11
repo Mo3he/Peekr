@@ -10,6 +10,7 @@
 		0490474F62791DAA55E6714D /* MetricDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 026A68ED59A510D633407224 /* MetricDetailSheet.swift */; };
 		088900E7A663478C7E1524D1 /* HSMWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654455A090C0406644C4613C /* HSMWidget.swift */; };
 		0B18CE286BE09FE5C112B452 /* HSMIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E20F3947DD6A5C9E987D1C9 /* HSMIntents.swift */; };
+		0EC42BAB9B60DAA1E529BB19 /* SynologyIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84343575BBC3529A7E2CFA84 /* SynologyIntegration.swift */; };
 		1181AC8F2AC17BD75D5D1275 /* StatusHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C54BE9893D582FCD359B7604 /* StatusHistory.swift */; };
 		136520F0A4EDE72F7BCC83D7 /* MetricSummarySchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE076AFDAA0AFF2735951A7F /* MetricSummarySchedule.swift */; };
 		1662AB2D7D37583E93BDF18B /* SparklineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76BD81E8EBA0BF4620E123AF /* SparklineView.swift */; };
@@ -161,6 +162,7 @@
 		7A2F9072CAF8E07E84FE8854 /* UGreenNASIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UGreenNASIntegration.swift; sourceTree = "<group>"; };
 		7B311DF6041DB20E35B65EDD /* QBittorrentIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBittorrentIntegration.swift; sourceTree = "<group>"; };
 		7FA28FD326BA24B07E4243F5 /* ServicePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicePickerView.swift; sourceTree = "<group>"; };
+		84343575BBC3529A7E2CFA84 /* SynologyIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynologyIntegration.swift; sourceTree = "<group>"; };
 		86FB66368EBA32D50FE15A59 /* iPadRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iPadRootView.swift; sourceTree = "<group>"; };
 		8A5480518934894C70EAA4E2 /* ArrIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArrIntegration.swift; sourceTree = "<group>"; };
 		8BC0090205C9FD4B13AE4C95 /* IconPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconPickerView.swift; sourceTree = "<group>"; };
@@ -175,7 +177,7 @@
 		9F2A8DC30F8FEDEE843FCAB4 /* MetricAlertsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricAlertsSettingsView.swift; sourceTree = "<group>"; };
 		A0FCBC80807C20C2293DE6A0 /* ProxmoxIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxmoxIntegration.swift; sourceTree = "<group>"; };
 		A0FDCB8557AC2D23AE4A9F6E /* StatusEventStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusEventStore.swift; sourceTree = "<group>"; };
-		A1BA52C4470CF29F63E56E0F /* HSMWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = HSMWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1BA52C4470CF29F63E56E0F /* HSMWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HSMWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A22F857A5DC3E5F59442B3B3 /* ProwlarrIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProwlarrIntegration.swift; sourceTree = "<group>"; };
 		A54237BD7070E428C72CA5B6 /* AddServiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddServiceView.swift; sourceTree = "<group>"; };
 		A722C9D4B602DF27DC6307E3 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
@@ -204,11 +206,11 @@
 		EDA88FAEA49E07D0C2629B78 /* NtfyIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NtfyIntegration.swift; sourceTree = "<group>"; };
 		F3C1D8C2D322BD7A519FA0B1 /* StatusEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusEvent.swift; sourceTree = "<group>"; };
 		F4B12AB065AD679E9AB63BF6 /* ServiceDiscoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDiscoveryView.swift; sourceTree = "<group>"; };
-		FAB8856781FA958E211BCAF3 /* HSM.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HSM.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FAB8856781FA958E211BCAF3 /* HSM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HSM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC4215DB7BA1CF3F07C14656 /* SummaryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryDetailView.swift; sourceTree = "<group>"; };
 		FD834DBDF5096227C7813998 /* ImmichIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImmichIntegration.swift; sourceTree = "<group>"; };
 		FDD19652869D7484B7AE9280 /* MetricAlertConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricAlertConfigSheet.swift; sourceTree = "<group>"; };
-		FDE0FA29BAD6BC08C31E07BC /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		FDE0FA29BAD6BC08C31E07BC /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -347,6 +349,7 @@
 				A0FCBC80807C20C2293DE6A0 /* ProxmoxIntegration.swift */,
 				7B311DF6041DB20E35B65EDD /* QBittorrentIntegration.swift */,
 				6583437AB2804D670724CD4B /* ServiceIntegration.swift */,
+				84343575BBC3529A7E2CFA84 /* SynologyIntegration.swift */,
 				75C97C94A8D5EBC4222970A1 /* TraefikIntegration.swift */,
 				AB5C05C000A6EB44FB741F00 /* TrueNASIntegration.swift */,
 				7A2F9072CAF8E07E84FE8854 /* UGreenNASIntegration.swift */,
@@ -443,7 +446,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					14B5CC9E8DFC4E1CC39246D2 = {
 						DevelopmentTeam = KTX2SJ3P98;
@@ -566,6 +569,7 @@
 				B37D338EE45554D614EA03FB /* StatusIndicatorView.swift in Sources */,
 				C9D639493D7DCBEC595ED903 /* SummaryDetailView.swift in Sources */,
 				448E2BF1D7B6DA15EE1E8C64 /* SummaryNotificationManager.swift in Sources */,
+				0EC42BAB9B60DAA1E529BB19 /* SynologyIntegration.swift in Sources */,
 				CB5D1890B8B70457F13E98C5 /* TraefikIntegration.swift in Sources */,
 				45E951B573123FB8B3E0B08E /* TrueNASIntegration.swift in Sources */,
 				33DA5DD57BF0F70C74BF73AF /* UGreenNASIntegration.swift in Sources */,
@@ -655,7 +659,9 @@
 					"@executable_path/../../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = net.mohome.hsm.widget;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = maccatalyst.net.mohome.hsm.widget;
 				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
 				SWIFT_VERSION = 5.1;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -722,8 +728,10 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_GENERATE_STUBS_FOR_SYMBOLS_IN_STRING_CATALOGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.1;
 			};
@@ -743,7 +751,9 @@
 					"@executable_path/../../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = net.mohome.hsm.widget;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = maccatalyst.net.mohome.hsm.widget;
 				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
 				SWIFT_VERSION = 5.1;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -803,8 +813,10 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_GENERATE_STUBS_FOR_SYMBOLS_IN_STRING_CATALOGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.1;
 			};

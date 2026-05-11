@@ -328,7 +328,7 @@ struct AddServiceView: View {
                 SecureField("Password", text: $password)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                if effectiveType == .ugreenNas {
+                if effectiveType == .ugreenNas || effectiveType == .synology {
                     SecureField("One-Time Code (if 2FA is enabled)", text: $apiKey)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
