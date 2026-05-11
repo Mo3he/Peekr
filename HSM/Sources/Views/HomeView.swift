@@ -34,7 +34,7 @@ struct HomeView: View {
                 .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItemGroup(placement: .bottomBar) {
+                    ToolbarItem(placement: .topBarLeading) {
                         Button {
                             isSearchActive.toggle()
                             if isSearchActive {
@@ -45,7 +45,8 @@ struct HomeView: View {
                         } label: {
                             Image(systemName: isSearchActive ? "xmark" : "magnifyingglass")
                         }
-                        Spacer()
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button { showServicePicker = true } label: {
                             Image(systemName: "plus")
                         }
@@ -401,12 +402,16 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(header)
                 if !vm.services.isEmpty {
-                    HStack(spacing: 8) {
-                        filterChip(label: "All", filter: nil)
-                        filterChip(label: "Online", filter: .online)
-                        filterChip(label: "Degraded", filter: .degraded)
-                        filterChip(label: "Offline", filter: .offline)
-                        Spacer()
+                    HStack(spacing: 0) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                filterChip(label: "All", filter: nil)
+                                filterChip(label: "Online", filter: .online)
+                                filterChip(label: "Degraded", filter: .degraded)
+                                filterChip(label: "Offline", filter: .offline)
+                            }
+                            .padding(.trailing, 8)
+                        }
                         Menu {
                             Button {
                                 withAnimation { reorderMode = .services }
