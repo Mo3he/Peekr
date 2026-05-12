@@ -15,6 +15,17 @@ struct ServiceDiscoveryView: View {
     @Environment(\..dismiss) private var dismiss
     @ObservedObject private var store = ServiceStore.shared
 
+    // MARK: - Scan mode
+
+    private enum ScanMode: String, CaseIterable {
+        case auto     = "Auto"
+        case ipRange  = "IP Range"
+    }
+
+    @State private var scanMode: ScanMode = .auto
+    @State private var ipRangeText: String = ""
+    @State private var showIPRangeError = false
+
     /// Results with already-added services filtered out (matched on host + port).
     private var filteredResults: [DiscoveredNetworkService] {
         let existing = Set(store.services.map { "\($0.host):\($0.port)" })
@@ -30,6 +41,9 @@ struct ServiceDiscoveryView: View {
                     resultsList
                 }
             }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                scanModeHeader
+            }
             .navigationTitle("Network Scan")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -40,19 +54,100 @@ struct ServiceDiscoveryView: View {
                     if discovery.isScanning {
                         ProgressView()
                     } else {
-                        Button("Scan Again") { discovery.startScan() }
+                        Button(scanMode == .auto ? "Scan Again" : "Scan") {
+                            startCurrentScan()
+                        }
+                        .disabled(scanMode == .ipRange && ipRangeText.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                 }
             }
         }
         .onAppear {
-            // Only start a scan automatically on the very first open.
-            // If the user comes back after adding a service, keep existing results.
-            if discovery.results.isEmpty && !discovery.isScanning {
+            // Only auto-start when in Auto mode on the very first open.
+            if scanMode == .auto && discovery.results.isEmpty && !discovery.isScanning {
                 discovery.startScan()
             }
         }
         .onDisappear { discovery.stopScan() }
+    }
+
+    // MARK: - Scan Mode Header
+
+    @ViewBuilder
+    private var scanModeHeader: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Picker("Scan Mode", selection: $scanMode) {
+                ForEach(ScanMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 10)
+            .onChange(of: scanMode) { _, newMode in
+                showIPRangeError = false
+                discovery.stopScan()
+                discovery.resetResults()
+                if newMode == .auto {
+                    discovery.startScan()
+                }
+            }
+
+            if scanMode == .ipRange {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        TextField("e.g. 192.168.10.0/24 or 10.0.10.1-254", text: $ipRangeText)
+                            .textFieldStyle(.roundedBorder)
+                            .keyboardType(.numbersAndPunctuation)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .onChange(of: ipRangeText) { _, _ in showIPRangeError = false }
+                            .onSubmit { startCurrentScan() }
+
+                        if !ipRangeText.isEmpty {
+                            Button {
+                                ipRangeText = ""
+                                showIPRangeError = false
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal)
+
+                    if showIPRangeError {
+                        Text("Invalid range. Try 192.168.10.0/24 or 10.0.10.1-254.")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .padding(.horizontal)
+                    }
+                }
+                .padding(.bottom, 10)
+            }
+
+            Divider()
+        }
+        .background(.bar)
+    }
+
+    // MARK: - Scan trigger
+
+    private func startCurrentScan() {
+        showIPRangeError = false
+        switch scanMode {
+        case .auto:
+            discovery.startScan()
+        case .ipRange:
+            let trimmed = ipRangeText.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { return }
+            guard NetworkDiscoveryService.parseIPRange(trimmed) != nil else {
+                showIPRangeError = true
+                return
+            }
+            discovery.startScan(ipRange: trimmed)
+        }
     }
 
     // MARK: - Empty / Scanning State
@@ -79,6 +174,17 @@ struct ServiceDiscoveryView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                 }
+            } else if scanMode == .ipRange && discovery.results.isEmpty {
+                Image(systemName: "network")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.secondary)
+                Text("Enter an IP range")
+                    .font(.headline)
+                Text("Type a CIDR block or range above, then tap Scan to search a different subnet.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
             } else {
                 Image(systemName: "wifi.slash")
                     .font(.system(size: 48))
@@ -90,7 +196,7 @@ struct ServiceDiscoveryView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
-                Button("Scan Again") { discovery.startScan() }
+                Button("Scan Again") { startCurrentScan() }
                     .buttonStyle(.bordered)
                     .padding(.top, 4)
             }

@@ -282,6 +282,38 @@ final class NetworkDiscoveryService: ObservableObject {
         scanProgress = 0
     }
 
+    /// Clears discovered results without affecting a running scan.
+    func resetResults() {
+        results = []
+    }
+
+    /// Scans a user-specified CIDR block or IP range instead of the auto-detected local subnet.
+    /// Supports CIDR ("192.168.10.0/24"), short range ("192.168.10.1-254"),
+    /// and full range ("10.0.0.1-10.0.0.50").
+    func startScan(ipRange rangeString: String) {
+        guard let hosts = Self.parseIPRange(rangeString), !hosts.isEmpty else { return }
+        stopScan()
+        scanSession = Self.makeScanSession()
+        results = []
+        isScanning = true
+        // mDNS is intentionally omitted here: it browses the whole local network
+        // via multicast and would surface results outside the user-specified range.
+        scanTask = Task {
+            await runSweep(customHosts: hosts)
+            try? await Task.sleep(for: .seconds(3))
+            if !Task.isCancelled { stopScan() }
+        }
+    }
+
+    /// Parses an IP range string and returns the list of host IPs to probe.
+    /// Returns nil if the input cannot be parsed or exceeds 2048 addresses.
+    nonisolated static func parseIPRange(_ range: String) -> [String]? {
+        let trimmed = range.trimmingCharacters(in: .whitespaces)
+        if trimmed.contains("/") { return hostsFromCIDR(trimmed) }
+        if trimmed.contains("-") { return hostsFromRange(trimmed) }
+        return nil
+    }
+
     // MARK: - mDNS (hostname resolution)
 
     private func startMDNS() {
@@ -328,10 +360,12 @@ final class NetworkDiscoveryService: ObservableObject {
 
     // MARK: - TCP + HTTP Sweep
 
-    private func runSweep() async {
-        // Try to read the real netmask; fall back to /24 so the sweep always runs.
+    private func runSweep(customHosts: [String]? = nil) async {
+        // Use caller-supplied hosts (IP range mode) or auto-detect from local interface.
         let hosts: [String]
-        if let (localIP, netmask) = Self.currentIPAndMask() {
+        if let customHosts {
+            hosts = customHosts
+        } else if let (localIP, netmask) = Self.currentIPAndMask() {
             hosts = Self.hostsInSubnet(ip: localIP, mask: netmask)
         } else if let localIP = NetworkMonitor.shared.currentLocalIP,
                   let subnet = Self.extractSubnet(from: localIP) {
@@ -352,7 +386,7 @@ final class NetworkDiscoveryService: ObservableObject {
         // Open 100 non-blocking sockets and poll() all of them in one syscall.
         // This avoids spawning a GCD thread per probe, which was the main bottleneck.
         let allTargets = hosts.flatMap { host in uniquePorts.map { (host, $0) } }
-        let batchSize = 100
+        let batchSize = 200
         let totalBatches = max(1, (allTargets.count + batchSize - 1) / batchSize)
         var openPairs: [(host: String, port: Int)] = []
 
@@ -428,6 +462,66 @@ final class NetworkDiscoveryService: ObservableObject {
         return "\(parts[0]).\(parts[1]).\(parts[2])"
     }
 
+    // MARK: - IP Range Parsing
+
+    /// Expands a CIDR string (e.g. "192.168.10.0/24") into individual host IPs.
+    nonisolated private static func hostsFromCIDR(_ cidr: String) -> [String]? {
+        let parts = cidr.split(separator: "/", maxSplits: 1)
+        guard parts.count == 2,
+              let prefix = Int(parts[1]), (8...30).contains(prefix),
+              let octets = parseIPv4Octets(String(parts[0])) else { return nil }
+        let ipInt   = (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3]
+        let maskInt = ~(UInt32.max >> UInt32(prefix))
+        let network   = ipInt & maskInt
+        let broadcast = network | (~maskInt)
+        let hostCount = Int(broadcast &- network) - 1
+        guard hostCount > 0, hostCount <= 2048 else { return nil }
+        return (1...hostCount).map { i -> String in
+            let h = network + UInt32(i)
+            return "\((h >> 24) & 0xFF).\((h >> 16) & 0xFF).\((h >> 8) & 0xFF).\(h & 0xFF)"
+        }
+    }
+
+    /// Expands a dash range into individual host IPs.
+    /// Accepts:
+    ///   - Short range: "192.168.10.1-254" (last-octet shorthand)
+    ///   - Full range:  "10.0.0.1-10.0.0.50"
+    nonisolated private static func hostsFromRange(_ range: String) -> [String]? {
+        guard let dashIdx = range.firstIndex(of: "-") else { return nil }
+        let startStr = String(range[range.startIndex..<dashIdx])
+        let endStr   = String(range[range.index(after: dashIdx)...])
+
+        // Full range: both sides are dotted-quad IPs.
+        if let s = parseIPv4Octets(startStr), let e = parseIPv4Octets(endStr) {
+            let startInt = (s[0] << 24) | (s[1] << 16) | (s[2] << 8) | s[3]
+            let endInt   = (e[0] << 24) | (e[1] << 16) | (e[2] << 8) | e[3]
+            guard endInt >= startInt else { return nil }
+            let count = Int(endInt - startInt) + 1
+            guard count <= 2048 else { return nil }
+            return (0..<count).map { i -> String in
+                let h = startInt + UInt32(i)
+                return "\((h >> 24) & 0xFF).\((h >> 16) & 0xFF).\((h >> 8) & 0xFF).\(h & 0xFF)"
+            }
+        }
+
+        // Short range: "192.168.10.1-254" (end is a bare last-octet number).
+        if let s = parseIPv4Octets(startStr),
+           let endLast = UInt32(endStr), (1...254).contains(endLast),
+           s[3] <= endLast {
+            let pfx = "\(s[0] & 0xFF).\(s[1] & 0xFF).\(s[2] & 0xFF)"
+            return (s[3]...endLast).map { "\(pfx).\($0)" }
+        }
+
+        return nil
+    }
+
+    /// Parses a dotted-quad IPv4 string into four UInt32 octets, or returns nil.
+    nonisolated private static func parseIPv4Octets(_ s: String) -> [UInt32]? {
+        let parts = s.split(separator: ".", omittingEmptySubsequences: false).compactMap { UInt32($0) }
+        guard parts.count == 4, parts.allSatisfy({ $0 <= 255 }) else { return nil }
+        return parts
+    }
+
     /// Returns all host addresses (excluding network and broadcast) in the subnet
     /// defined by the given IP and dotted-decimal netmask. Capped at 2048 hosts
     /// so a misconfigured /8 doesn't trigger a huge scan.
@@ -476,10 +570,14 @@ final class NetworkDiscoveryService: ObservableObject {
                 }
 
                 var results: [(host: String, port: Int)] = []
-                // Loop poll() until all sockets are done or 500 ms wall-clock expires.
+                // Loop poll() until all sockets are done or 800 ms wall-clock expires.
+                // 800 ms is enough to cover cold ARP resolution (20-100 ms on a LAN)
+                // while keeping the scan fast. Batch size is 200 (vs 100) so there
+                // are fewer batches total, reducing the number of times dead-IP batches
+                // run to the full deadline.
                 // poll() returns as soon as ANY socket is ready, so we re-call with
                 // the remaining sockets and shrinking timeout to collect all of them.
-                let deadlineNs = DispatchTime.now().uptimeNanoseconds + 500_000_000
+                let deadlineNs = DispatchTime.now().uptimeNanoseconds + 800_000_000
                 while !pending.isEmpty {
                     let nowNs = DispatchTime.now().uptimeNanoseconds
                     guard nowNs < deadlineNs else { break }
